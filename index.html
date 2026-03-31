@@ -12,9 +12,12 @@
 </head>
 
 <body>
-    <!-- Background Image -->
+    <!-- Background Image with Parallax -->
     <div class="bg-image" id="bgImage"></div>
     <div class="bg-overlay"></div>
+
+    <!-- Lightning Flash -->
+    <div class="lightning-flash" id="lightningFlash"></div>
 
     <!-- Rain Effect Canvas -->
     <canvas id="rainCanvas" class="rain-canvas"></canvas>
@@ -34,14 +37,14 @@
 
     <!-- Theme Switcher -->
     <div class="theme-switcher" id="themeSwitcher">
-        <button class="theme-btn active" data-theme="lake" title="🏞️ Danau Habis Hujan">
+        <button class="theme-btn active" data-theme="lake" title="🌧️ Kota Hujan">
             <span class="theme-dot" style="background: linear-gradient(135deg, #4ade80, #22d3ee);"></span>
         </button>
         <button class="theme-btn" data-theme="forest" title="🌲 Hutan Berkabut">
-            <span class="theme-dot" style="background: linear-gradient(135deg, #6a3d4a, #a3e635);"></span>
+            <span class="theme-dot" style="background: linear-gradient135deg, #6a3d4a, #a3e635);"></span>
         </button>
         <button class="theme-btn" data-theme="mountain" title="🏔️ Gunung & Danau">
-            <span class="theme-dot" style="background: linear-gradient(135deg, #0ea5e9, #8b5cf6);"></span>
+            <span class="theme-dot" style="background: linear-gradient(135deg, #ea5e9, #8b5cf6);"></span>
         </button>
         <button class="theme-btn" data-theme="zen" title="🎋 Taman Zen">
             <span class="theme-dot" style="background: linear-gradient(135deg, #f472b6, #fb923c);"></span>
@@ -60,7 +63,7 @@
                 <div class="calc-logo">
                     <div class="logo-icon">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="2" y="2" width="20" height="20" rx="4" stroke="currentColor" stroke-width="1.5"/>
+                            <rect x="2" y="2" width="20" height="20" rx="4" stroke="currentColor" strok-width="1.5"/>
                             <line x1="7" y1="7" x2="17" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                             <circle cx="7.5" cy="12" r="1" fill="currentColor"/>
                             <circle cx="12" cy="12" r="1" fill="currentColor"/>
@@ -197,7 +200,7 @@
                 <circle cx="18" cy="16" r="3"/>
             </svg>
             <div class="mini-visualizer" id="miniVisualizer">
-               <span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span>
             </div>
         </button>
 
@@ -246,7 +249,7 @@
                     <span class="station-icon">🎵</span>
                     <span class="station-name">Lofi Girl</span>
                 </button>
-                <button class="station-btn" data-video="7NOSDKb0HlU" data-name="☕ Chillhop Radio - jazzy & lofi hip hop">
+                <button class="station-btn" datvideo="7NOSDKb0HlU" data-name="☕ Chillhop Radio - jazzy & lofi hip hop">
                     <span class="station-icon">☕</span>
                     <span class="station-name">Chillhop</span>
                 </button>
@@ -254,7 +257,7 @@
                     <span class="station-icon">🌧️</span>
                     <span class="station-name">Chill Beats</span>
                 </button>
-                <button class="station-btn" data-video="rUxyKA_-grg" data-name="🌌 Synthwave Radio - Retro Vibes">
+                <button class="station-btn" dat-vdeo="rUxyKA_-grg" data-name="🌌 Synthwave Radio - Retro Vibes">
                     <span class="station-icon">🌌</span>
                     <span class="station-name">Synthwave</span>
                 </button>
@@ -265,7 +268,7 @@
                 <div class="url-input-wrapper">
                     <input type="text" class="url-input" id="youtubeUrl" placeholder="Paste YouTube URL di sini..." spellcheck="false">
                     <button class="url-play-btn" id="urlPlayBtn" title="Play">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <s width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                             <polygon points="5 3 19 12 5 21 5 3"/>
                         </svg>
                     </button>
@@ -299,9 +302,9 @@
         <span>⌨️ Keyboard aktif</span>
     </div>
 
-    <!-- Footer Credit -->
+    <!-- Footer Credit - Repositioned to bottom right corner -->
     <div class="footer-credit">
-        <span>Made with ❤️ by <span class="gradient-text">Sobing4413</span></span>
+        <span>Made with ❤️ by <span class="gradient-text">Sobing</span></span>
     </div>
 
     <!-- YouTube IFrame API -->
