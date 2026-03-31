@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id" data-theme="dark-elegant">
+<html lang="id" data-theme="lake">
 
 <head>
     <meta charset="UTF-8">
@@ -12,19 +12,12 @@
 </head>
 
 <body>
-    <!-- Matrix Rain Canvas -->
-    <canvas id="matrixCanvas" class="matrix-canvas"></canvas>
-
-    <!-- Aurora Background -->
-    <div class="aurora-bg">
-        <div class="aurora-layer aurora-1"></div>
-        <div class="aurora-layer aurora-2"></div>
-        <div class="aurora-layer aurora-3"></div>
-    </div>
-
-    <!-- Animated Background -->
-    <div class="bg-layer" id="bgLayer"></div>
+    <!-- Background Image -->
+    <div class="bg-image" id="bgImage"></div>
     <div class="bg-overlay"></div>
+
+    <!-- Rain Effect Canvas -->
+    <canvas id="rainCanvas" class="rain-canvas"></canvas>
 
     <!-- Animated Particles -->
     <canvas id="particleCanvas" class="particle-canvas"></canvas>
@@ -32,35 +25,26 @@
     <!-- Confetti Canvas -->
     <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
 
-    <!-- Wave Background -->
-    <div class="wave-container">
-        <svg class="wave wave-1" viewBox="0 0 1440 320" preserveAspectRatio="none">
-            <path d="M0,192L48,197.3C96,203,192,213,288,229.3C384,245,480,267,576,250.7C672,235,768,181,864,181.3C960,181,1056,235,1152,234.7C1248,235,1344,181,1392,154.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
-        </svg>
-        <svg class="wave wave-2" viewBox="0 0 1440 320" preserveAspectRatio="none">
-            <path d="M0,64L48,80C96,96,192,128,288,128C384,128,480,96,576,106.7C672,117,768,171,864,186.7C960,203,1056,181,1152,154.7C1248,128,1344,96,1392,80L1440,64L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
-        </svg>
-        <svg class="wave wave-3" viewBox="0 0 1440 320" preserveAspectRatio="none">
-            <path d="M0,288L48,272C96,256,192,224,288,197.3C384,171,480,149,576,165.3C672,181,768,235,864,250.7C960,267,1056,245,1152,224C1248,203,1344,181,1392,170.7L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
-        </svg>
+    <!-- Floating Mist -->
+    <div class="mist-container">
+        <div class="mist mist-1"></div>
+        <div class="mist mist-2"></div>
+        <div class="mist mist-3"></div>
     </div>
-
-    <!-- Floating Neon Orbs -->
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div class="orb orb-3"></div>
-    <div class="orb orb-4"></div>
 
     <!-- Theme Switcher -->
     <div class="theme-switcher" id="themeSwitcher">
-        <button class="theme-btn active" data-theme="dark-elegant" title="Dark Elegant">
-            <span class="theme-dot" style="background: linear-gradient(135deg, #6c63ff, #a855f7);"></span>
+        <button class="theme-btn active" data-theme="lake" title="🏞️ Danau Habis Hujan">
+            <span class="theme-dot" style="background: linear-gradient(135deg, #4ade80, #22d3ee);"></span>
         </button>
-        <button class="theme-btn" data-theme="midnight-blue" title="Midnight Blue">
-            <span class="theme-dot" style="background: linear-gradient(135deg, #3b82f6, #06b6d4);"></span>
+        <button class="theme-btn" data-theme="forest" title="🌲 Hutan Berkabut">
+            <span class="theme-dot" style="background: linear-gradient(135deg, #16a34a, #a3e635);"></span>
         </button>
-        <button class="theme-btn" data-theme="neon-green" title="Neon Green">
-            <span class="theme-dot" style="background: linear-gradient(135deg, #10b981, #34d399);"></span>
+        <button class="theme-btn" data-theme="mountain" title="🏔️ Gunung & Danau">
+            <span class="theme-dot" style="background: linear-gradient(135deg, #0ea5e9, #8b5cf6);"></span>
+        </button>
+        <button class="theme-btn" data-theme="zen" title="🎋 Taman Zen">
+            <span class="theme-dot" style="background: linear-gradient(135deg, #f472b6, #fb923c);"></span>
         </button>
     </div>
 
@@ -68,7 +52,7 @@
     <div class="app-container">
         <!-- Calculator -->
         <div class="calculator" id="calculator">
-            <!-- Neon border glow -->
+            <!-- Glow border -->
             <div class="neon-border"></div>
 
             <!-- Header -->
@@ -115,7 +99,6 @@
                         </svg>
                     </button>
                 </div>
-                <!-- Copy toast -->
                 <div class="copy-toast" id="copyToast">Disalin! ✓</div>
             </div>
 
@@ -185,7 +168,7 @@
         <!-- History Panel -->
         <div class="history-panel" id="historyPanel">
             <div class="history-header">
-                <h3>Riwayat</h3>
+                <h3>📜 Riwayat</h3>
                 <button class="action-btn" id="clearHistory" title="Hapus Riwayat">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="3 6 5 6 21 6"/>
@@ -207,20 +190,17 @@
 
     <!-- Music Player -->
     <div class="music-player" id="musicPlayer">
-        <!-- Toggle Button -->
         <button class="music-toggle" id="musicToggle" title="Music Player">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M9 18V5l12-2v13"/>
                 <circle cx="6" cy="18" r="3"/>
                 <circle cx="18" cy="16" r="3"/>
             </svg>
-            <!-- Audio Visualizer Bars on toggle -->
             <div class="mini-visualizer" id="miniVisualizer">
                 <span></span><span></span><span></span><span></span>
             </div>
         </button>
 
-        <!-- Player Panel -->
         <div class="music-panel" id="musicPanel">
             <div class="music-panel-header">
                 <div class="music-title-row">
@@ -287,9 +267,9 @@
                 </div>
             </div>
 
-            <!-- YouTube iframe (hidden) -->
-            <div class="yt-container" id="ytContainer">
-                <iframe id="ytPlayer" width="100%" height="0" src="" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen style="display:none;"></iframe>
+            <!-- YouTube Player Container (hidden) -->
+            <div id="ytPlayerContainer" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;">
+                <div id="ytPlayer"></div>
             </div>
 
             <!-- Controls -->
@@ -319,6 +299,8 @@
         <span>⌨️ Keyboard aktif</span>
     </div>
 
+    <!-- YouTube IFrame API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script src="./script.js"></script>
 </body>
 
