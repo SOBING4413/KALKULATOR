@@ -1,8 +1,57 @@
-/**
- * SobingGanteng — Premium Calculator
- * Pure JavaScript calculator with scientific mode, history, themes,
- * keyboard support, copy/paste, animated particles, and wave background.
- */
+// ===== Matrix Rain =====
+class MatrixRain {
+    constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.drops = [];
+        this.chars = '0123456789+-x/=piSIGMA';
+        this.fontSize = 14;
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        this.animate();
+    }
+
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+        const cols = Math.floor(this.canvas.width / this.fontSize);
+        this.drops = [];
+        for (let i = 0; i < cols; i++) {
+            this.drops.push({
+                y: Math.random() * -100,
+                speed: 0.3 + Math.random() * 0.7,
+                opacity: 0.02 + Math.random() * 0.08
+            });
+        }
+    }
+
+    getColor() {
+        const style = getComputedStyle(document.documentElement);
+        return style.getPropertyValue('--matrix-color').trim() || 'rgba(108, 99, 255, 0.15)';
+    }
+
+    animate() {
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        const baseColor = this.getColor();
+
+        this.drops.forEach((drop, i) => {
+            const char = this.chars[Math.floor(Math.random() * this.chars.length)];
+            const x = i * this.fontSize;
+            this.ctx.font = this.fontSize + 'px monospace';
+            this.ctx.fillStyle = baseColor.replace(/[\d.]+\)$/, drop.opacity + ')');
+            this.ctx.fillText(char, x, drop.y * this.fontSize);
+            drop.y += drop.speed;
+            if (drop.y * this.fontSize > this.canvas.height && Math.random() > 0.98) {
+                drop.y = 0;
+                drop.speed = 0.3 + Math.random() * 0.7;
+                drop.opacity = 0.02 + Math.random() * 0.08;
+            }
+        });
+
+        requestAnimationFrame(() => this.animate());
+    }
+}
 
 // ===== Particle System =====
 class ParticleSystem {
@@ -11,6 +60,7 @@ class ParticleSystem {
         this.ctx = canvas.getContext('2d');
         this.particles = [];
         this.mouse = { x: -1000, y: -1000 };
+        this.mouseTrail = [];
         this.resize();
         this.createParticles();
         this.bindEvents();
@@ -23,108 +73,346 @@ class ParticleSystem {
     }
 
     createParticles() {
-        const count = Math.min(60, Math.floor((this.canvas.width * this.canvas.height) / 15000));
+        var count = Math.min(80, Math.floor((this.canvas.width * this.canvas.height) / 12000));
         this.particles = [];
-        for (let i = 0; i < count; i++) {
+        for (var i = 0; i < count; i++) {
             this.particles.push({
                 x: Math.random() * this.canvas.width,
                 y: Math.random() * this.canvas.height,
-                vx: (Math.random() - 0.5) * 0.3,
-                vy: (Math.random() - 0.5) * 0.3,
-                radius: Math.random() * 2 + 0.5,
+                vx: (Math.random() - 0.5) * 0.4,
+                vy: (Math.random() - 0.5) * 0.4,
+                radius: Math.random() * 2.5 + 0.5,
                 opacity: Math.random() * 0.5 + 0.1,
                 pulseSpeed: Math.random() * 0.02 + 0.005,
-                pulsePhase: Math.random() * Math.PI * 2,
+                pulsePhase: Math.random() * Math.PI * 2
             });
         }
     }
 
     bindEvents() {
-        window.addEventListener('resize', () => {
-            this.resize();
-            this.createParticles();
+        var self = this;
+        window.addEventListener('resize', function() {
+            self.resize();
+            self.createParticles();
         });
-
-        window.addEventListener('mousemove', (e) => {
-            this.mouse.x = e.clientX;
-            this.mouse.y = e.clientY;
+        window.addEventListener('mousemove', function(e) {
+            self.mouse.x = e.clientX;
+            self.mouse.y = e.clientY;
+            self.mouseTrail.push({ x: e.clientX, y: e.clientY, life: 1 });
+            if (self.mouseTrail.length > 20) self.mouseTrail.shift();
         });
     }
 
     getParticleColor() {
-        const style = getComputedStyle(document.documentElement);
+        var style = getComputedStyle(document.documentElement);
         return style.getPropertyValue('--particle-color').trim() || 'rgba(108, 99, 255, 0.4)';
     }
 
     animate() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        const color = this.getParticleColor();
-        const time = Date.now() * 0.001;
+        var color = this.getParticleColor();
+        var time = Date.now() * 0.001;
 
-        this.particles.forEach((p, i) => {
-            // Update position
+        // Mouse trail
+        for (var t = 0; t < this.mouseTrail.length; t++) {
+            var point = this.mouseTrail[t];
+            point.life -= 0.03;
+            if (point.life > 0) {
+                this.ctx.beginPath();
+                this.ctx.arc(point.x, point.y, 3 * point.life, 0, Math.PI * 2);
+                this.ctx.fillStyle = color.replace(/[\d.]+\)$/, (point.life * 0.3) + ')');
+                this.ctx.fill();
+            }
+        }
+        this.mouseTrail = this.mouseTrail.filter(function(p) { return p.life > 0; });
+
+        for (var i = 0; i < this.particles.length; i++) {
+            var p = this.particles[i];
             p.x += p.vx;
             p.y += p.vy;
 
-            // Wrap around
             if (p.x < 0) p.x = this.canvas.width;
             if (p.x > this.canvas.width) p.x = 0;
             if (p.y < 0) p.y = this.canvas.height;
             if (p.y > this.canvas.height) p.y = 0;
 
-            // Mouse interaction - gentle push
-            const dx = p.x - this.mouse.x;
-            const dy = p.y - this.mouse.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 150) {
-                const force = (150 - dist) / 150 * 0.02;
+            var dx = p.x - this.mouse.x;
+            var dy = p.y - this.mouse.y;
+            var dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 180) {
+                var force = (180 - dist) / 180 * 0.03;
                 p.vx += dx * force * 0.01;
                 p.vy += dy * force * 0.01;
             }
 
-            // Dampen velocity
             p.vx *= 0.99;
             p.vy *= 0.99;
 
-            // Pulse opacity
-            const pulse = Math.sin(time * p.pulseSpeed * 60 + p.pulsePhase) * 0.3 + 0.7;
-            const currentOpacity = p.opacity * pulse;
+            var pulse = Math.sin(time * p.pulseSpeed * 60 + p.pulsePhase) * 0.3 + 0.7;
+            var currentOpacity = p.opacity * pulse;
 
-            // Draw particle
             this.ctx.beginPath();
             this.ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-            this.ctx.fillStyle = color.replace(/[\d.]+\)$/, `${currentOpacity})`);
+            this.ctx.fillStyle = color.replace(/[\d.]+\)$/, currentOpacity + ')');
             this.ctx.fill();
 
-            // Draw connections
-            for (let j = i + 1; j < this.particles.length; j++) {
-                const p2 = this.particles[j];
-                const cdx = p.x - p2.x;
-                const cdy = p.y - p2.y;
-                const cdist = Math.sqrt(cdx * cdx + cdy * cdy);
-                if (cdist < 120) {
-                    const lineOpacity = (1 - cdist / 120) * 0.15;
+            if (p.radius > 1.5) {
+                this.ctx.beginPath();
+                this.ctx.arc(p.x, p.y, p.radius * 3, 0, Math.PI * 2);
+                this.ctx.fillStyle = color.replace(/[\d.]+\)$/, (currentOpacity * 0.1) + ')');
+                this.ctx.fill();
+            }
+
+            for (var j = i + 1; j < this.particles.length; j++) {
+                var p2 = this.particles[j];
+                var cdx = p.x - p2.x;
+                var cdy = p.y - p2.y;
+                var cdist = Math.sqrt(cdx * cdx + cdy * cdy);
+                if (cdist < 140) {
+                    var lineOpacity = (1 - cdist / 140) * 0.15;
                     this.ctx.beginPath();
                     this.ctx.moveTo(p.x, p.y);
                     this.ctx.lineTo(p2.x, p2.y);
-                    this.ctx.strokeStyle = color.replace(/[\d.]+\)$/, `${lineOpacity})`);
+                    this.ctx.strokeStyle = color.replace(/[\d.]+\)$/, lineOpacity + ')');
                     this.ctx.lineWidth = 0.5;
                     this.ctx.stroke();
                 }
             }
-        });
+        }
 
         requestAnimationFrame(() => this.animate());
     }
 }
 
+// ===== Confetti System =====
+class ConfettiSystem {
+    constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.particles = [];
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+        this.animating = false;
+        window.addEventListener('resize', () => {
+            this.canvas.width = window.innerWidth;
+            this.canvas.height = window.innerHeight;
+        });
+    }
+
+    burst(x, y) {
+        var colors = ['#6c63ff', '#ff6b6b', '#06b6d4', '#a855f7', '#f59e0b', '#10b981', '#f472b6', '#fbbf24'];
+        for (var i = 0; i < 50; i++) {
+            var angle = (Math.PI * 2 * i) / 50 + Math.random() * 0.5;
+            var velocity = 4 + Math.random() * 8;
+            this.particles.push({
+                x: x || this.canvas.width / 2,
+                y: y || this.canvas.height / 2,
+                vx: Math.cos(angle) * velocity,
+                vy: Math.sin(angle) * velocity - 3,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                size: 3 + Math.random() * 5,
+                life: 1,
+                decay: 0.008 + Math.random() * 0.012,
+                rotation: Math.random() * Math.PI * 2,
+                rotSpeed: (Math.random() - 0.5) * 0.2,
+                isRect: Math.random() > 0.5
+            });
+        }
+        if (!this.animating) {
+            this.animating = true;
+            this.animate();
+        }
+    }
+
+    animate() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        for (var i = 0; i < this.particles.length; i++) {
+            var p = this.particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.15;
+            p.vx *= 0.99;
+            p.life -= p.decay;
+            p.rotation += p.rotSpeed;
+
+            if (p.life > 0) {
+                this.ctx.save();
+                this.ctx.translate(p.x, p.y);
+                this.ctx.rotate(p.rotation);
+                this.ctx.globalAlpha = p.life;
+                this.ctx.fillStyle = p.color;
+                if (p.isRect) {
+                    this.ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+                } else {
+                    this.ctx.beginPath();
+                    this.ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+                this.ctx.restore();
+            }
+        }
+        this.particles = this.particles.filter(function(p) { return p.life > 0; });
+        if (this.particles.length > 0) {
+            requestAnimationFrame(() => this.animate());
+        } else {
+            this.animating = false;
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+    }
+}
+
+// ===== Music Player =====
+class MusicPlayer {
+    constructor() {
+        this.isOpen = false;
+        this.isPlaying = false;
+        this.currentStation = null;
+        this.currentVideoId = null;
+        this.vizInterval = null;
+
+        this.toggle = document.getElementById('musicToggle');
+        this.panel = document.getElementById('musicPanel');
+        this.closeBtn = document.getElementById('musicClose');
+        this.playPauseBtn = document.getElementById('musicPlayPause');
+        this.playIcon = document.getElementById('playIcon');
+        this.pauseIcon = document.getElementById('pauseIcon');
+        this.volumeSlider = document.getElementById('volumeSlider');
+        this.urlInput = document.getElementById('youtubeUrl');
+        this.urlPlayBtn = document.getElementById('urlPlayBtn');
+        this.ytPlayer = document.getElementById('ytPlayer');
+        this.visualizer = document.getElementById('audioVisualizer');
+        this.nowPlayingText = document.querySelector('.now-playing-text');
+        this.vizBars = document.querySelectorAll('.viz-bar');
+
+        this.init();
+    }
+
+    init() {
+        var self = this;
+        this.toggle.addEventListener('click', function() { self.togglePanel(); });
+        this.closeBtn.addEventListener('click', function() { self.togglePanel(); });
+        this.playPauseBtn.addEventListener('click', function() { self.togglePlayPause(); });
+        this.urlPlayBtn.addEventListener('click', function() { self.playCustomUrl(); });
+
+        this.urlInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') self.playCustomUrl();
+            e.stopPropagation();
+        });
+
+        document.querySelectorAll('.station-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var videoId = btn.dataset.video;
+                var name = btn.dataset.name;
+                self.playStation(videoId, name, btn);
+            });
+        });
+
+        this.vizBars.forEach(function(bar) {
+            bar.style.setProperty('--bar-height', (0.2 + Math.random() * 0.8).toFixed(2));
+        });
+    }
+
+    togglePanel() {
+        this.isOpen = !this.isOpen;
+        this.panel.classList.toggle('open', this.isOpen);
+    }
+
+    playStation(videoId, name, btnEl) {
+        document.querySelectorAll('.station-btn').forEach(function(b) { b.classList.remove('active'); });
+        if (btnEl) btnEl.classList.add('active');
+        this.currentVideoId = videoId;
+        this.currentStation = name;
+        this.loadVideo(videoId);
+        this.nowPlayingText.textContent = name;
+        this.setPlaying(true);
+    }
+
+    playCustomUrl() {
+        var url = this.urlInput.value.trim();
+        if (!url) return;
+        var videoId = this.extractVideoId(url);
+        if (videoId) {
+            document.querySelectorAll('.station-btn').forEach(function(b) { b.classList.remove('active'); });
+            this.currentVideoId = videoId;
+            this.currentStation = 'Custom YouTube';
+            this.loadVideo(videoId);
+            this.nowPlayingText.textContent = 'Custom YouTube Video';
+            this.setPlaying(true);
+        } else {
+            var self = this;
+            this.nowPlayingText.textContent = 'URL tidak valid';
+            setTimeout(function() {
+                self.nowPlayingText.textContent = self.currentStation || 'Pilih station atau paste link YouTube';
+            }, 2000);
+        }
+    }
+
+    extractVideoId(url) {
+        var patterns = [
+            /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+            /^([a-zA-Z0-9_-]{11})$/
+        ];
+        for (var i = 0; i < patterns.length; i++) {
+            var match = url.match(patterns[i]);
+            if (match) return match[1];
+        }
+        return null;
+    }
+
+    loadVideo(videoId) {
+        this.ytPlayer.src = 'https://www.youtube.com/embed/' + videoId + '?autoplay=1&loop=1&playlist=' + videoId + '&controls=0&showinfo=0&rel=0&modestbranding=1';
+        this.ytPlayer.style.display = 'block';
+        this.ytPlayer.style.height = '0';
+    }
+
+    togglePlayPause() {
+        if (this.isPlaying) {
+            this.ytPlayer.src = '';
+            this.setPlaying(false);
+        } else if (this.currentVideoId) {
+            this.loadVideo(this.currentVideoId);
+            this.setPlaying(true);
+        }
+    }
+
+    setPlaying(playing) {
+        this.isPlaying = playing;
+        this.playIcon.style.display = playing ? 'none' : 'block';
+        this.pauseIcon.style.display = playing ? 'block' : 'none';
+        this.toggle.classList.toggle('playing', playing);
+        this.visualizer.classList.toggle('active', playing);
+
+        if (playing) {
+            this.startVisualizerAnimation();
+        } else {
+            this.stopVisualizerAnimation();
+        }
+    }
+
+    startVisualizerAnimation() {
+        var self = this;
+        if (this.vizInterval) clearInterval(this.vizInterval);
+        this.vizInterval = setInterval(function() {
+            self.vizBars.forEach(function(bar) {
+                bar.style.setProperty('--bar-height', (0.15 + Math.random() * 0.85).toFixed(2));
+            });
+        }, 200);
+    }
+
+    stopVisualizerAnimation() {
+        if (this.vizInterval) {
+            clearInterval(this.vizInterval);
+            this.vizInterval = null;
+        }
+    }
+}
+
 // ===== Calculator =====
 class Calculator {
-    constructor() {
-        // State
+    constructor(confetti) {
+        this.confetti = confetti;
         this.currentInput = '0';
         this.expression = '';
-        this.fullExpression = '';
         this.lastResult = null;
         this.operator = null;
         this.previousValue = null;
@@ -134,7 +422,6 @@ class Calculator {
         this.historyOpen = false;
         this.parenthesesCount = 0;
 
-        // DOM Elements
         this.resultEl = document.getElementById('result');
         this.expressionEl = document.getElementById('expression');
         this.scientificPanel = document.getElementById('scientificPanel');
@@ -143,6 +430,7 @@ class Calculator {
         this.keyboardHint = document.getElementById('keyboardHint');
         this.copyBtn = document.getElementById('copyBtn');
         this.copyToast = document.getElementById('copyToast');
+        this.calculatorEl = document.getElementById('calculator');
 
         this.init();
     }
@@ -158,91 +446,74 @@ class Calculator {
         this.loadTheme();
     }
 
-    // ===== Button Binding =====
     bindButtons() {
-        document.querySelectorAll('.btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.createRipple(e, btn);
-                const action = btn.dataset.action;
-                this.handleAction(action);
+        var self = this;
+        document.querySelectorAll('.btn').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                self.createRipple(e, btn);
+                var action = btn.dataset.action;
+                self.handleAction(action);
+                if (btn.classList.contains('btn-operator') || btn.classList.contains('btn-equal')) {
+                    btn.classList.add('btn-shockwave');
+                    setTimeout(function() { btn.classList.remove('btn-shockwave'); }, 600);
+                }
             });
 
-            btn.addEventListener('mousedown', (e) => {
-                const rect = btn.getBoundingClientRect();
-                const x = ((e.clientX - rect.left) / rect.width) * 100;
-                const y = ((e.clientY - rect.top) / rect.height) * 100;
-                btn.style.setProperty('--ripple-x', `${x}%`);
-                btn.style.setProperty('--ripple-y', `${y}%`);
+            btn.addEventListener('mousedown', function(e) {
+                var rect = btn.getBoundingClientRect();
+                var x = ((e.clientX - rect.left) / rect.width) * 100;
+                var y = ((e.clientY - rect.top) / rect.height) * 100;
+                btn.style.setProperty('--ripple-x', x + '%');
+                btn.style.setProperty('--ripple-y', y + '%');
             });
         });
     }
 
     createRipple(e, btn) {
-        const ripple = document.createElement('span');
-        const rect = btn.getBoundingClientRect();
-        const size = Math.max(rect.width, rect.height) * 2.5;
-        const x = e.clientX - rect.left - size / 2;
-        const y = e.clientY - rect.top - size / 2;
+        var ripple = document.createElement('span');
+        var rect = btn.getBoundingClientRect();
+        var size = Math.max(rect.width, rect.height) * 2.5;
+        var x = e.clientX - rect.left - size / 2;
+        var y = e.clientY - rect.top - size / 2;
 
-        ripple.style.cssText = `
-            position: absolute;
-            width: ${size}px;
-            height: ${size}px;
-            left: ${x}px;
-            top: ${y}px;
-            border-radius: 50%;
-            background: var(--ripple);
-            transform: scale(0);
-            animation: rippleAnim 0.6s ease-out forwards;
-            pointer-events: none;
-            z-index: 1;
-        `;
+        ripple.style.cssText = 'position:absolute;width:' + size + 'px;height:' + size + 'px;left:' + x + 'px;top:' + y + 'px;border-radius:50%;background:var(--ripple);transform:scale(0);animation:rippleAnim 0.6s ease-out forwards;pointer-events:none;z-index:1;';
 
         if (!document.getElementById('rippleStyle')) {
-            const style = document.createElement('style');
+            var style = document.createElement('style');
             style.id = 'rippleStyle';
-            style.textContent = `
-                @keyframes rippleAnim {
-                    to { transform: scale(1); opacity: 0; }
-                }
-            `;
+            style.textContent = '@keyframes rippleAnim { to { transform: scale(1); opacity: 0; } }';
             document.head.appendChild(style);
         }
 
         btn.appendChild(ripple);
-        setTimeout(() => ripple.remove(), 600);
+        setTimeout(function() { ripple.remove(); }, 600);
     }
 
-    // ===== Keyboard Binding =====
     bindKeyboard() {
-        let hintTimeout;
-        document.addEventListener('keydown', (e) => {
-            const key = e.key;
+        var self = this;
+        var hintTimeout;
+        document.addEventListener('keydown', function(e) {
+            var key = e.key;
 
-            // Allow Ctrl+C and Ctrl+V
             if ((e.ctrlKey || e.metaKey) && (key === 'c' || key === 'v')) {
-                if (key === 'c') {
-                    e.preventDefault();
-                    this.copyResult();
-                }
-                if (key === 'v') {
-                    e.preventDefault();
-                    this.pasteValue();
-                }
+                if (key === 'c') { e.preventDefault(); self.copyResult(); }
+                if (key === 'v') { e.preventDefault(); self.pasteValue(); }
+                return;
+            }
+
+            if (document.activeElement && document.activeElement.classList.contains('url-input')) {
                 return;
             }
 
             e.preventDefault();
 
-            // Show keyboard hint
-            this.keyboardHint.classList.add('show');
+            self.keyboardHint.classList.add('show');
             clearTimeout(hintTimeout);
-            hintTimeout = setTimeout(() => {
-                this.keyboardHint.classList.remove('show');
+            hintTimeout = setTimeout(function() {
+                self.keyboardHint.classList.remove('show');
             }, 1500);
 
-            // Map keys to actions
-            const keyMap = {
+            var keyMap = {
                 '0': '0', '1': '1', '2': '2', '3': '3', '4': '4',
                 '5': '5', '6': '6', '7': '7', '8': '8', '9': '9',
                 '.': 'decimal', ',': 'decimal',
@@ -251,43 +522,39 @@ class Calculator {
                 'Enter': 'equals', '=': 'equals',
                 'Backspace': 'backspace', 'Delete': 'clear',
                 'Escape': 'clear',
-                '(': 'paren-open', ')': 'paren-close',
+                '(': 'paren-open', ')': 'paren-close'
             };
 
             if (keyMap[key]) {
-                this.handleAction(keyMap[key]);
-                // Highlight corresponding button
-                const btn = document.querySelector(`[data-action="${keyMap[key]}"]`);
+                self.handleAction(keyMap[key]);
+                var btn = document.querySelector('[data-action="' + keyMap[key] + '"]');
                 if (btn) {
                     btn.classList.add('calculating');
-                    setTimeout(() => btn.classList.remove('calculating'), 200);
+                    setTimeout(function() { btn.classList.remove('calculating'); }, 200);
                 }
             }
         });
     }
 
-    // ===== Copy / Paste =====
     bindCopyPaste() {
-        this.copyBtn.addEventListener('click', () => {
-            this.copyResult();
-        });
+        var self = this;
+        this.copyBtn.addEventListener('click', function() { self.copyResult(); });
     }
 
     copyResult() {
-        const value = this.currentInput === 'Error' ? '' : this.currentInput;
+        var self = this;
+        var value = this.currentInput === 'Error' ? '' : this.currentInput;
         if (!value) return;
 
-        navigator.clipboard.writeText(value).then(() => {
-            // Show toast
-            this.copyToast.classList.add('show');
-            this.copyBtn.classList.add('copied');
-            setTimeout(() => {
-                this.copyToast.classList.remove('show');
-                this.copyBtn.classList.remove('copied');
+        navigator.clipboard.writeText(value).then(function() {
+            self.copyToast.classList.add('show');
+            self.copyBtn.classList.add('copied');
+            setTimeout(function() {
+                self.copyToast.classList.remove('show');
+                self.copyBtn.classList.remove('copied');
             }, 1500);
-        }).catch(() => {
-            // Fallback
-            const textarea = document.createElement('textarea');
+        }).catch(function() {
+            var textarea = document.createElement('textarea');
             textarea.value = value;
             textarea.style.position = 'fixed';
             textarea.style.opacity = '0';
@@ -295,40 +562,35 @@ class Calculator {
             textarea.select();
             document.execCommand('copy');
             document.body.removeChild(textarea);
-
-            this.copyToast.classList.add('show');
-            this.copyBtn.classList.add('copied');
-            setTimeout(() => {
-                this.copyToast.classList.remove('show');
-                this.copyBtn.classList.remove('copied');
+            self.copyToast.classList.add('show');
+            self.copyBtn.classList.add('copied');
+            setTimeout(function() {
+                self.copyToast.classList.remove('show');
+                self.copyBtn.classList.remove('copied');
             }, 1500);
         });
     }
 
     pasteValue() {
-        navigator.clipboard.readText().then(text => {
-            const cleaned = text.trim().replace(/[^0-9.\-]/g, '');
+        var self = this;
+        navigator.clipboard.readText().then(function(text) {
+            var cleaned = text.trim().replace(/[^0-9.\-]/g, '');
             if (cleaned && !isNaN(parseFloat(cleaned))) {
-                this.currentInput = cleaned;
-                this.waitingForOperand = false;
-                this.updateDisplay();
-
-                // Animate paste
-                this.resultEl.classList.add('bounce');
-                setTimeout(() => this.resultEl.classList.remove('bounce'), 400);
+                self.currentInput = cleaned;
+                self.waitingForOperand = false;
+                self.updateDisplay();
+                self.resultEl.classList.add('bounce');
+                setTimeout(function() { self.resultEl.classList.remove('bounce'); }, 400);
             }
-        }).catch(() => {
-            // Clipboard not available
-        });
+        }).catch(function() {});
     }
 
-    // ===== Theme Switcher =====
     bindThemeSwitcher() {
-        document.querySelectorAll('.theme-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const theme = btn.dataset.theme;
+        document.querySelectorAll('.theme-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var theme = btn.dataset.theme;
                 document.documentElement.setAttribute('data-theme', theme);
-                document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.theme-btn').forEach(function(b) { b.classList.remove('active'); });
                 btn.classList.add('active');
                 localStorage.setItem('SobingGanteng-theme', theme);
             });
@@ -336,60 +598,56 @@ class Calculator {
     }
 
     loadTheme() {
-        const saved = localStorage.getItem('SobingGanteng-theme');
+        var saved = localStorage.getItem('SobingGanteng-theme');
         if (saved) {
             document.documentElement.setAttribute('data-theme', saved);
-            document.querySelectorAll('.theme-btn').forEach(b => {
+            document.querySelectorAll('.theme-btn').forEach(function(b) {
                 b.classList.toggle('active', b.dataset.theme === saved);
             });
         }
     }
 
-    // ===== Scientific Toggle =====
     bindScientificToggle() {
-        const toggle = document.getElementById('sciToggle');
-        toggle.addEventListener('click', () => {
-            this.scientificOpen = !this.scientificOpen;
-            this.scientificPanel.classList.toggle('open', this.scientificOpen);
-            toggle.classList.toggle('active', this.scientificOpen);
+        var self = this;
+        var toggle = document.getElementById('sciToggle');
+        toggle.addEventListener('click', function() {
+            self.scientificOpen = !self.scientificOpen;
+            self.scientificPanel.classList.toggle('open', self.scientificOpen);
+            toggle.classList.toggle('active', self.scientificOpen);
         });
     }
 
-    // ===== History Toggle =====
     bindHistoryToggle() {
-        const toggle = document.getElementById('historyToggle');
-        toggle.addEventListener('click', () => {
-            this.historyOpen = !this.historyOpen;
-            this.historyPanel.classList.toggle('open', this.historyOpen);
-            toggle.classList.toggle('active', this.historyOpen);
+        var self = this;
+        var toggle = document.getElementById('historyToggle');
+        toggle.addEventListener('click', function() {
+            self.historyOpen = !self.historyOpen;
+            self.historyPanel.classList.toggle('open', self.historyOpen);
+            toggle.classList.toggle('active', self.historyOpen);
         });
 
-        document.getElementById('clearHistory').addEventListener('click', () => {
-            this.history = [];
-            this.saveHistory();
-            this.renderHistory();
+        document.getElementById('clearHistory').addEventListener('click', function() {
+            self.history = [];
+            self.saveHistory();
+            self.renderHistory();
         });
     }
 
-    // ===== Action Handler =====
     handleAction(action) {
-        // Numbers
         if (/^[0-9]$/.test(action)) {
             this.inputNumber(action);
             return;
         }
-
         switch (action) {
             case 'decimal': this.inputDecimal(); break;
             case 'add': this.inputOperator('+'); break;
             case 'subtract': this.inputOperator('-'); break;
-            case 'multiply': this.inputOperator('×'); break;
-            case 'divide': this.inputOperator('÷'); break;
+            case 'multiply': this.inputOperator('\u00D7'); break;
+            case 'divide': this.inputOperator('\u00F7'); break;
             case 'equals': this.calculate(); break;
             case 'clear': this.clear(); break;
             case 'backspace': this.backspace(); break;
             case 'percent': this.percent(); break;
-            // Scientific
             case 'sin': this.scientificFunc('sin'); break;
             case 'cos': this.scientificFunc('cos'); break;
             case 'tan': this.scientificFunc('tan'); break;
@@ -399,8 +657,8 @@ class Calculator {
             case 'pow': this.scientificPow(2); break;
             case 'cube': this.scientificPow(3); break;
             case 'factorial': this.factorial(); break;
-            case 'pi': this.inputConstant(Math.PI, 'π'); break;
-            case 'e': this.inputConstant(Math.E, 'e'); break;
+            case 'pi': this.inputConstant(Math.PI); break;
+            case 'e': this.inputConstant(Math.E); break;
             case 'abs': this.scientificFunc('abs'); break;
             case 'inv': this.inverse(); break;
             case 'exp': this.inputOperator('E'); break;
@@ -411,7 +669,6 @@ class Calculator {
         }
     }
 
-    // ===== Input Methods =====
     inputNumber(num) {
         if (this.waitingForOperand) {
             this.currentInput = num;
@@ -433,25 +690,22 @@ class Calculator {
     }
 
     inputOperator(op) {
-        const current = parseFloat(this.currentInput);
-
+        var current = parseFloat(this.currentInput);
         if (this.previousValue !== null && !this.waitingForOperand) {
-            const result = this.compute(this.previousValue, current, this.operator);
+            var result = this.compute(this.previousValue, current, this.operator);
             this.previousValue = result;
             this.currentInput = this.formatNumber(result);
         } else {
             this.previousValue = current;
         }
-
-        const displayOp = op;
-        this.expression = `${this.formatDisplay(this.previousValue)} ${displayOp}`;
+        this.expression = this.formatDisplay(this.previousValue) + ' ' + op;
         this.operator = op;
         this.waitingForOperand = true;
         this.updateDisplay();
         this.highlightOperator(op);
     }
 
-    inputConstant(value, symbol) {
+    inputConstant(value) {
         this.currentInput = String(value);
         if (this.waitingForOperand) {
             this.waitingForOperand = false;
@@ -462,25 +716,24 @@ class Calculator {
     inputParen(paren) {
         if (paren === '(') {
             if (!this.waitingForOperand && this.currentInput !== '0') {
-                this.inputOperator('×');
+                this.inputOperator('\u00D7');
             }
             this.expression += ' (';
             this.parenthesesCount++;
             this.waitingForOperand = true;
         } else if (paren === ')' && this.parenthesesCount > 0) {
-            this.expression += ` ${this.currentInput} )`;
+            this.expression += ' ' + this.currentInput + ' )';
             this.parenthesesCount--;
         }
         this.updateDisplay();
     }
 
-    // ===== Computation =====
     compute(a, b, op) {
         switch (op) {
             case '+': return a + b;
             case '-': return a - b;
-            case '×': return a * b;
-            case '÷': return b !== 0 ? a / b : NaN;
+            case '\u00D7': return a * b;
+            case '\u00F7': return b !== 0 ? a / b : NaN;
             case '^': return Math.pow(a, b);
             case 'mod': return a % b;
             case 'E': return a * Math.pow(10, b);
@@ -490,24 +743,35 @@ class Calculator {
 
     calculate() {
         if (this.operator === null && this.lastResult === null) return;
-
-        const current = parseFloat(this.currentInput);
-        let result;
-        let fullExpr;
+        var current = parseFloat(this.currentInput);
+        var result;
+        var fullExpr;
 
         if (this.previousValue !== null) {
             result = this.compute(this.previousValue, current, this.operator);
-            fullExpr = `${this.expression} ${this.formatDisplay(current)}`;
+            fullExpr = this.expression + ' ' + this.formatDisplay(current);
         } else {
             return;
         }
 
-        // Animate result
-        this.resultEl.classList.add('bounce');
-        setTimeout(() => this.resultEl.classList.remove('bounce'), 400);
+        // Glitch effect
+        this.resultEl.classList.add('glitch');
+        var resultEl = this.resultEl;
+        setTimeout(function() { resultEl.classList.remove('glitch'); }, 300);
 
-        // Add to history
+        // Screen shake
+        this.calculatorEl.classList.add('screen-shake');
+        var calcEl = this.calculatorEl;
+        setTimeout(function() { calcEl.classList.remove('screen-shake'); }, 400);
+
+        // Bounce
+        this.resultEl.classList.add('bounce');
+        setTimeout(function() { resultEl.classList.remove('bounce'); }, 400);
+
+        // Confetti
         if (!isNaN(result) && isFinite(result)) {
+            var rect = this.calculatorEl.getBoundingClientRect();
+            this.confetti.burst(rect.left + rect.width / 2, rect.top + rect.height / 3);
             this.addHistory(fullExpr, result);
         }
 
@@ -521,40 +785,39 @@ class Calculator {
         this.updateDisplay();
     }
 
-    // ===== Scientific Functions =====
     scientificFunc(func) {
-        const current = parseFloat(this.currentInput);
-        let result;
-        let expr;
+        var current = parseFloat(this.currentInput);
+        var result;
+        var expr;
 
         switch (func) {
             case 'sin':
                 result = Math.sin(current * Math.PI / 180);
-                expr = `sin(${this.formatDisplay(current)}°)`;
+                expr = 'sin(' + this.formatDisplay(current) + '\u00B0)';
                 break;
             case 'cos':
                 result = Math.cos(current * Math.PI / 180);
-                expr = `cos(${this.formatDisplay(current)}°)`;
+                expr = 'cos(' + this.formatDisplay(current) + '\u00B0)';
                 break;
             case 'tan':
                 result = Math.tan(current * Math.PI / 180);
-                expr = `tan(${this.formatDisplay(current)}°)`;
+                expr = 'tan(' + this.formatDisplay(current) + '\u00B0)';
                 break;
             case 'log':
                 result = Math.log10(current);
-                expr = `log(${this.formatDisplay(current)})`;
+                expr = 'log(' + this.formatDisplay(current) + ')';
                 break;
             case 'ln':
                 result = Math.log(current);
-                expr = `ln(${this.formatDisplay(current)})`;
+                expr = 'ln(' + this.formatDisplay(current) + ')';
                 break;
             case 'sqrt':
                 result = Math.sqrt(current);
-                expr = `√(${this.formatDisplay(current)})`;
+                expr = '\u221A(' + this.formatDisplay(current) + ')';
                 break;
             case 'abs':
                 result = Math.abs(current);
-                expr = `|${this.formatDisplay(current)}|`;
+                expr = '|' + this.formatDisplay(current) + '|';
                 break;
             default:
                 return;
@@ -565,17 +828,19 @@ class Calculator {
         this.currentInput = this.formatNumber(result);
         this.waitingForOperand = true;
 
-        // Animate
+        this.resultEl.classList.add('glitch');
+        var el = this.resultEl;
+        setTimeout(function() { el.classList.remove('glitch'); }, 300);
         this.resultEl.classList.add('bounce');
-        setTimeout(() => this.resultEl.classList.remove('bounce'), 400);
+        setTimeout(function() { el.classList.remove('bounce'); }, 400);
 
         this.updateDisplay();
     }
 
     scientificPow(power) {
-        const current = parseFloat(this.currentInput);
-        const result = Math.pow(current, power);
-        const expr = `${this.formatDisplay(current)}${power === 2 ? '²' : '³'}`;
+        var current = parseFloat(this.currentInput);
+        var result = Math.pow(current, power);
+        var expr = this.formatDisplay(current) + (power === 2 ? '\u00B2' : '\u00B3');
 
         this.addHistory(expr, result);
         this.expression = expr;
@@ -583,58 +848,58 @@ class Calculator {
         this.waitingForOperand = true;
 
         this.resultEl.classList.add('bounce');
-        setTimeout(() => this.resultEl.classList.remove('bounce'), 400);
-
+        var el = this.resultEl;
+        setTimeout(function() { el.classList.remove('bounce'); }, 400);
         this.updateDisplay();
     }
 
     factorial() {
-        const current = parseInt(this.currentInput);
+        var current = parseInt(this.currentInput);
         if (current < 0 || current > 170) {
             this.currentInput = 'Error';
             this.updateDisplay();
             return;
         }
-        let result = 1;
-        for (let i = 2; i <= current; i++) {
+        var result = 1;
+        for (var i = 2; i <= current; i++) {
             result *= i;
         }
-        const expr = `${current}!`;
+        var expr = current + '!';
         this.addHistory(expr, result);
         this.expression = expr;
         this.currentInput = this.formatNumber(result);
         this.waitingForOperand = true;
 
         this.resultEl.classList.add('bounce');
-        setTimeout(() => this.resultEl.classList.remove('bounce'), 400);
-
+        var el = this.resultEl;
+        setTimeout(function() { el.classList.remove('bounce'); }, 400);
         this.updateDisplay();
     }
 
     inverse() {
-        const current = parseFloat(this.currentInput);
+        var current = parseFloat(this.currentInput);
         if (current === 0) {
             this.currentInput = 'Error';
             this.updateDisplay();
             return;
         }
-        const result = 1 / current;
-        const expr = `1/${this.formatDisplay(current)}`;
+        var result = 1 / current;
+        var expr = '1/' + this.formatDisplay(current);
         this.addHistory(expr, result);
         this.expression = expr;
         this.currentInput = this.formatNumber(result);
         this.waitingForOperand = true;
 
         this.resultEl.classList.add('bounce');
-        setTimeout(() => this.resultEl.classList.remove('bounce'), 400);
-
+        var el = this.resultEl;
+        setTimeout(function() { el.classList.remove('bounce'); }, 400);
         this.updateDisplay();
     }
 
     percent() {
-        const current = parseFloat(this.currentInput);
+        var current = parseFloat(this.currentInput);
         if (this.previousValue !== null) {
-            const result = (this.previousValue * current) / 100;
+            var result = (this.previousValue * current) / 100;
             this.currentInput = this.formatNumber(result);
         } else {
             this.currentInput = this.formatNumber(current / 100);
@@ -642,7 +907,6 @@ class Calculator {
         this.updateDisplay();
     }
 
-    // ===== Clear / Backspace =====
     clear() {
         this.currentInput = '0';
         this.expression = '';
@@ -665,14 +929,12 @@ class Calculator {
         this.updateDisplay();
     }
 
-    // ===== Display =====
     updateDisplay() {
-        const displayValue = this.currentInput === 'Error' ? 'Error' : this.formatDisplayValue(this.currentInput);
+        var displayValue = this.currentInput === 'Error' ? 'Error' : this.formatDisplayValue(this.currentInput);
         this.resultEl.textContent = displayValue;
         this.expressionEl.textContent = this.expression;
 
-        // Auto-shrink font
-        const len = displayValue.length;
+        var len = displayValue.length;
         this.resultEl.classList.remove('shrink', 'shrink-more');
         if (len > 12) {
             this.resultEl.classList.add('shrink-more');
@@ -683,8 +945,7 @@ class Calculator {
 
     formatNumber(num) {
         if (isNaN(num) || !isFinite(num)) return 'Error';
-        const str = parseFloat(num.toPrecision(12)).toString();
-        return str;
+        return parseFloat(num.toPrecision(12)).toString();
     }
 
     formatDisplay(num) {
@@ -694,38 +955,37 @@ class Calculator {
 
     formatDisplayValue(value) {
         if (value === 'Error') return value;
-        const parts = value.split('.');
-        const intPart = parts[0];
-        const decPart = parts[1];
+        var parts = value.split('.');
+        var intPart = parts[0];
+        var decPart = parts[1];
 
         if (!intPart.includes('e') && !intPart.includes('E')) {
-            const isNeg = intPart.startsWith('-');
-            const absInt = isNeg ? intPart.slice(1) : intPart;
-            const formatted = absInt.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-            const result = isNeg ? '-' + formatted : formatted;
-            return decPart !== undefined ? `${result}.${decPart}` : result;
+            var isNeg = intPart.startsWith('-');
+            var absInt = isNeg ? intPart.slice(1) : intPart;
+            var formatted = absInt.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            var result = isNeg ? '-' + formatted : formatted;
+            return decPart !== undefined ? result + '.' + decPart : result;
         }
         return value;
     }
 
     highlightOperator(op) {
         this.clearOperatorHighlight();
-        const opMap = { '+': 'add', '-': 'subtract', '×': 'multiply', '÷': 'divide' };
-        const action = opMap[op];
+        var opMap = { '+': 'add', '-': 'subtract', '\u00D7': 'multiply', '\u00F7': 'divide' };
+        var action = opMap[op];
         if (action) {
-            const btn = document.querySelector(`.btn-operator[data-action="${action}"]`);
+            var btn = document.querySelector('.btn-operator[data-action="' + action + '"]');
             if (btn) btn.classList.add('active-op');
         }
     }
 
     clearOperatorHighlight() {
-        document.querySelectorAll('.btn-operator').forEach(b => b.classList.remove('active-op'));
+        document.querySelectorAll('.btn-operator').forEach(function(b) { b.classList.remove('active-op'); });
     }
 
-    // ===== History =====
     addHistory(expression, result) {
-        const item = {
-            expression,
+        var item = {
+            expression: expression,
             result: this.formatNumber(result),
             timestamp: Date.now()
         };
@@ -736,38 +996,28 @@ class Calculator {
     }
 
     renderHistory() {
+        var self = this;
         if (this.history.length === 0) {
-            this.historyList.innerHTML = `
-                <div class="history-empty">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity="0.3">
-                        <circle cx="12" cy="12" r="10"/>
-                        <polyline points="12 6 12 12 16 14"/>
-                    </svg>
-                    <p>Belum ada riwayat</p>
-                </div>
-            `;
+            this.historyList.innerHTML = '<div class="history-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity="0.3"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><p>Belum ada riwayat</p></div>';
             return;
         }
 
-        this.historyList.innerHTML = this.history.map((item, i) => `
-            <div class="history-item" data-index="${i}" style="animation-delay: ${i * 0.05}s">
-                <div class="history-expr">${this.escapeHtml(item.expression)}</div>
-                <div class="history-result">= ${this.formatDisplayValue(item.result)}</div>
-            </div>
-        `).join('');
+        var html = '';
+        for (var i = 0; i < this.history.length; i++) {
+            var item = this.history[i];
+            html += '<div class="history-item" data-index="' + i + '" style="animation-delay: ' + (i * 0.05) + 's"><div class="history-expr">' + this.escapeHtml(item.expression) + '</div><div class="history-result">= ' + this.formatDisplayValue(item.result) + '</div></div>';
+        }
+        this.historyList.innerHTML = html;
 
-        // Click to reuse result
-        this.historyList.querySelectorAll('.history-item').forEach(el => {
-            el.addEventListener('click', () => {
-                const index = parseInt(el.dataset.index);
-                const item = this.history[index];
-                this.currentInput = item.result;
-                this.waitingForOperand = true;
-
-                this.resultEl.classList.add('bounce');
-                setTimeout(() => this.resultEl.classList.remove('bounce'), 400);
-
-                this.updateDisplay();
+        this.historyList.querySelectorAll('.history-item').forEach(function(el) {
+            el.addEventListener('click', function() {
+                var index = parseInt(el.dataset.index);
+                var item = self.history[index];
+                self.currentInput = item.result;
+                self.waitingForOperand = true;
+                self.resultEl.classList.add('bounce');
+                setTimeout(function() { self.resultEl.classList.remove('bounce'); }, 400);
+                self.updateDisplay();
             });
         });
     }
@@ -783,7 +1033,7 @@ class Calculator {
 
     loadHistory() {
         try {
-            const saved = localStorage.getItem('SobingGanteng-history');
+            var saved = localStorage.getItem('SobingGanteng-history');
             if (saved) {
                 this.history = JSON.parse(saved);
                 this.renderHistory();
@@ -794,20 +1044,33 @@ class Calculator {
     }
 
     escapeHtml(str) {
-        const div = document.createElement('div');
+        var div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
     }
 }
 
 // ===== Initialize =====
-document.addEventListener('DOMContentLoaded', () => {
-    // Init particle system
-    const canvas = document.getElementById('particleCanvas');
-    if (canvas) {
-        new ParticleSystem(canvas);
+document.addEventListener('DOMContentLoaded', function() {
+    // Matrix Rain
+    var matrixCanvas = document.getElementById('matrixCanvas');
+    if (matrixCanvas) {
+        new MatrixRain(matrixCanvas);
     }
 
-    // Init calculator
-    new Calculator();
+    // Particle System
+    var particleCanvas = document.getElementById('particleCanvas');
+    if (particleCanvas) {
+        new ParticleSystem(particleCanvas);
+    }
+
+    // Confetti
+    var confettiCanvas = document.getElementById('confettiCanvas');
+    var confetti = new ConfettiSystem(confettiCanvas);
+
+    // Calculator
+    new Calculator(confetti);
+
+    // Music Player
+    new MusicPlayer();
 });
