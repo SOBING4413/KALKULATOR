@@ -1,53 +1,54 @@
-// ===== Matrix Rain =====
-class MatrixRain {
+// ===== Rain Effect =====
+class RainEffect {
     constructor(canvas) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.drops = [];
-        this.chars = '0123456789+-x/=piSIGMA';
-        this.fontSize = 14;
         this.resize();
         window.addEventListener('resize', () => this.resize());
+        this.createDrops();
         this.animate();
     }
 
     resize() {
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
-        const cols = Math.floor(this.canvas.width / this.fontSize);
+    }
+
+    createDrops() {
+        var count = Math.min(100, Math.floor(this.canvas.width / 8));
         this.drops = [];
-        for (let i = 0; i < cols; i++) {
+        for (var i = 0; i < count; i++) {
             this.drops.push({
-                y: Math.random() * -100,
-                speed: 0.3 + Math.random() * 0.7,
-                opacity: 0.02 + Math.random() * 0.08
+                x: Math.random() * this.canvas.width,
+                y: Math.random() * this.canvas.height,
+                length: 10 + Math.random() * 20,
+                speed: 2 + Math.random() * 4,
+                opacity: 0.05 + Math.random() * 0.15,
+                width: 0.5 + Math.random() * 1
             });
         }
     }
 
-    getColor() {
-        const style = getComputedStyle(document.documentElement);
-        return style.getPropertyValue('--matrix-color').trim() || 'rgba(108, 99, 255, 0.15)';
-    }
-
     animate() {
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        const baseColor = this.getColor();
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        this.drops.forEach((drop, i) => {
-            const char = this.chars[Math.floor(Math.random() * this.chars.length)];
-            const x = i * this.fontSize;
-            this.ctx.font = this.fontSize + 'px monospace';
-            this.ctx.fillStyle = baseColor.replace(/[\d.]+\)$/, drop.opacity + ')');
-            this.ctx.fillText(char, x, drop.y * this.fontSize);
+        for (var i = 0; i < this.drops.length; i++) {
+            var drop = this.drops[i];
+            this.ctx.beginPath();
+            this.ctx.moveTo(drop.x, drop.y);
+            this.ctx.lineTo(drop.x + 0.5, drop.y + drop.length);
+            this.ctx.strokeStyle = 'rgba(180, 220, 255, ' + drop.opacity + ')';
+            this.ctx.lineWidth = drop.width;
+            this.ctx.stroke();
+
             drop.y += drop.speed;
-            if (drop.y * this.fontSize > this.canvas.height && Math.random() > 0.98) {
-                drop.y = 0;
-                drop.speed = 0.3 + Math.random() * 0.7;
-                drop.opacity = 0.02 + Math.random() * 0.08;
+
+            if (drop.y > this.canvas.height) {
+                drop.y = -drop.length;
+                drop.x = Math.random() * this.canvas.width;
             }
-        });
+        }
 
         requestAnimationFrame(() => this.animate());
     }
@@ -73,16 +74,16 @@ class ParticleSystem {
     }
 
     createParticles() {
-        var count = Math.min(80, Math.floor((this.canvas.width * this.canvas.height) / 12000));
+        var count = Math.min(60, Math.floor((this.canvas.width * this.canvas.height) / 15000));
         this.particles = [];
         for (var i = 0; i < count; i++) {
             this.particles.push({
                 x: Math.random() * this.canvas.width,
                 y: Math.random() * this.canvas.height,
-                vx: (Math.random() - 0.5) * 0.4,
-                vy: (Math.random() - 0.5) * 0.4,
-                radius: Math.random() * 2.5 + 0.5,
-                opacity: Math.random() * 0.5 + 0.1,
+                vx: (Math.random() - 0.5) * 0.3,
+                vy: (Math.random() - 0.5) * 0.3,
+                radius: Math.random() * 2 + 0.5,
+                opacity: Math.random() * 0.4 + 0.1,
                 pulseSpeed: Math.random() * 0.02 + 0.005,
                 pulsePhase: Math.random() * Math.PI * 2
             });
@@ -99,13 +100,13 @@ class ParticleSystem {
             self.mouse.x = e.clientX;
             self.mouse.y = e.clientY;
             self.mouseTrail.push({ x: e.clientX, y: e.clientY, life: 1 });
-            if (self.mouseTrail.length > 20) self.mouseTrail.shift();
+            if (self.mouseTrail.length > 15) self.mouseTrail.shift();
         });
     }
 
     getParticleColor() {
         var style = getComputedStyle(document.documentElement);
-        return style.getPropertyValue('--particle-color').trim() || 'rgba(108, 99, 255, 0.4)';
+        return style.getPropertyValue('--particle-color').trim() || 'rgba(74, 222, 128, 0.4)';
     }
 
     animate() {
@@ -113,7 +114,6 @@ class ParticleSystem {
         var color = this.getParticleColor();
         var time = Date.now() * 0.001;
 
-        // Mouse trail
         for (var t = 0; t < this.mouseTrail.length; t++) {
             var point = this.mouseTrail[t];
             point.life -= 0.03;
@@ -139,8 +139,8 @@ class ParticleSystem {
             var dx = p.x - this.mouse.x;
             var dy = p.y - this.mouse.y;
             var dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 180) {
-                var force = (180 - dist) / 180 * 0.03;
+            if (dist < 150) {
+                var force = (150 - dist) / 150 * 0.02;
                 p.vx += dx * force * 0.01;
                 p.vy += dy * force * 0.01;
             }
@@ -168,8 +168,8 @@ class ParticleSystem {
                 var cdx = p.x - p2.x;
                 var cdy = p.y - p2.y;
                 var cdist = Math.sqrt(cdx * cdx + cdy * cdy);
-                if (cdist < 140) {
-                    var lineOpacity = (1 - cdist / 140) * 0.15;
+                if (cdist < 120) {
+                    var lineOpacity = (1 - cdist / 120) * 0.12;
                     this.ctx.beginPath();
                     this.ctx.moveTo(p.x, p.y);
                     this.ctx.lineTo(p2.x, p2.y);
@@ -200,7 +200,7 @@ class ConfettiSystem {
     }
 
     burst(x, y) {
-        var colors = ['#6c63ff', '#ff6b6b', '#06b6d4', '#a855f7', '#f59e0b', '#10b981', '#f472b6', '#fbbf24'];
+        var colors = ['#4ade80', '#22d3ee', '#f472b6', '#a78bfa', '#fbbf24', '#fb923c', '#34d399', '#38bdf8'];
         for (var i = 0; i < 50; i++) {
             var angle = (Math.PI * 2 * i) / 50 + Math.random() * 0.5;
             var velocity = 4 + Math.random() * 8;
@@ -261,7 +261,19 @@ class ConfettiSystem {
     }
 }
 
-// ===== Music Player =====
+// ===== Music Player with YouTube IFrame API =====
+var ytPlayerReady = false;
+var ytPlayerInstance = null;
+var onYouTubeIframeAPIReadyCallback = null;
+
+// This function is called by the YouTube IFrame API when it's ready
+window.onYouTubeIframeAPIReady = function() {
+    ytPlayerReady = true;
+    if (onYouTubeIframeAPIReadyCallback) {
+        onYouTubeIframeAPIReadyCallback();
+    }
+};
+
 class MusicPlayer {
     constructor() {
         this.isOpen = false;
@@ -269,6 +281,8 @@ class MusicPlayer {
         this.currentStation = null;
         this.currentVideoId = null;
         this.vizInterval = null;
+        this.player = null;
+        this.playerReady = false;
 
         this.toggle = document.getElementById('musicToggle');
         this.panel = document.getElementById('musicPanel');
@@ -279,7 +293,6 @@ class MusicPlayer {
         this.volumeSlider = document.getElementById('volumeSlider');
         this.urlInput = document.getElementById('youtubeUrl');
         this.urlPlayBtn = document.getElementById('urlPlayBtn');
-        this.ytPlayer = document.getElementById('ytPlayer');
         this.visualizer = document.getElementById('audioVisualizer');
         this.nowPlayingText = document.querySelector('.now-playing-text');
         this.vizBars = document.querySelectorAll('.viz-bar');
@@ -299,6 +312,10 @@ class MusicPlayer {
             e.stopPropagation();
         });
 
+        // Prevent keyboard calculator actions when typing in URL input
+        this.urlInput.addEventListener('keyup', function(e) { e.stopPropagation(); });
+        this.urlInput.addEventListener('keypress', function(e) { e.stopPropagation(); });
+
         document.querySelectorAll('.station-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var videoId = btn.dataset.video;
@@ -307,8 +324,71 @@ class MusicPlayer {
             });
         });
 
+        this.volumeSlider.addEventListener('input', function() {
+            var vol = parseInt(self.volumeSlider.value);
+            if (self.player && self.playerReady) {
+                self.player.setVolume(vol);
+            }
+        });
+
         this.vizBars.forEach(function(bar) {
             bar.style.setProperty('--bar-height', (0.2 + Math.random() * 0.8).toFixed(2));
+        });
+
+        // Initialize YouTube player when API is ready
+        if (ytPlayerReady) {
+            this.createPlayer();
+        } else {
+            onYouTubeIframeAPIReadyCallback = function() {
+                self.createPlayer();
+            };
+        }
+    }
+
+    createPlayer() {
+        var self = this;
+        this.player = new YT.Player('ytPlayer', {
+            height: '1',
+            width: '1',
+            playerVars: {
+                autoplay: 0,
+                controls: 0,
+                disablekb: 1,
+                fs: 0,
+                modestbranding: 1,
+                rel: 0,
+                showinfo: 0,
+                origin: window.location.origin
+            },
+            events: {
+                onReady: function() {
+                    self.playerReady = true;
+                    ytPlayerInstance = self.player;
+                    self.player.setVolume(parseInt(self.volumeSlider.value));
+                },
+                onStateChange: function(event) {
+                    // YT.PlayerState: PLAYING=1, PAUSED=2, ENDED=0, BUFFERING=3
+                    if (event.data === YT.PlayerState.PLAYING) {
+                        self.setPlaying(true);
+                    } else if (event.data === YT.PlayerState.PAUSED) {
+                        self.setPlaying(false);
+                    } else if (event.data === YT.PlayerState.ENDED) {
+                        // Loop: replay the video
+                        if (self.currentVideoId) {
+                            self.player.seekTo(0);
+                            self.player.playVideo();
+                        }
+                    }
+                },
+                onError: function(event) {
+                    console.warn('YouTube Player Error:', event.data);
+                    self.nowPlayingText.textContent = 'Error: Video tidak bisa diputar (Code: ' + event.data + ')';
+                    self.setPlaying(false);
+                    setTimeout(function() {
+                        self.nowPlayingText.textContent = self.currentStation || 'Pilih station atau paste link YouTube';
+                    }, 3000);
+                }
+            }
         });
     }
 
@@ -322,9 +402,8 @@ class MusicPlayer {
         if (btnEl) btnEl.classList.add('active');
         this.currentVideoId = videoId;
         this.currentStation = name;
-        this.loadVideo(videoId);
         this.nowPlayingText.textContent = name;
-        this.setPlaying(true);
+        this.loadAndPlay(videoId);
     }
 
     playCustomUrl() {
@@ -335,12 +414,11 @@ class MusicPlayer {
             document.querySelectorAll('.station-btn').forEach(function(b) { b.classList.remove('active'); });
             this.currentVideoId = videoId;
             this.currentStation = 'Custom YouTube';
-            this.loadVideo(videoId);
-            this.nowPlayingText.textContent = 'Custom YouTube Video';
-            this.setPlaying(true);
+            this.nowPlayingText.textContent = 'Loading...';
+            this.loadAndPlay(videoId);
         } else {
             var self = this;
-            this.nowPlayingText.textContent = 'URL tidak valid';
+            this.nowPlayingText.textContent = '❌ URL tidak valid';
             setTimeout(function() {
                 self.nowPlayingText.textContent = self.currentStation || 'Pilih station atau paste link YouTube';
             }, 2000);
@@ -359,19 +437,46 @@ class MusicPlayer {
         return null;
     }
 
-    loadVideo(videoId) {
-        this.ytPlayer.src = 'https://www.youtube.com/embed/' + videoId + '?autoplay=1&loop=1&playlist=' + videoId + '&controls=0&showinfo=0&rel=0&modestbranding=1';
-        this.ytPlayer.style.display = 'block';
-        this.ytPlayer.style.height = '0';
+    loadAndPlay(videoId) {
+        if (this.player && this.playerReady) {
+            this.player.loadVideoById({
+                videoId: videoId,
+                suggestedQuality: 'small'
+            });
+            this.player.setVolume(parseInt(this.volumeSlider.value));
+        } else {
+            // Player not ready yet, wait and retry
+            var self = this;
+            var retryCount = 0;
+            var retryInterval = setInterval(function() {
+                retryCount++;
+                if (self.player && self.playerReady) {
+                    clearInterval(retryInterval);
+                    self.player.loadVideoById({
+                        videoId: videoId,
+                        suggestedQuality: 'small'
+                    });
+                    self.player.setVolume(parseInt(self.volumeSlider.value));
+                } else if (retryCount > 20) {
+                    clearInterval(retryInterval);
+                    self.nowPlayingText.textContent = '⚠️ Player belum siap, coba lagi...';
+                }
+            }, 500);
+        }
     }
 
     togglePlayPause() {
+        if (!this.player || !this.playerReady) return;
+
         if (this.isPlaying) {
-            this.ytPlayer.src = '';
-            this.setPlaying(false);
+            this.player.pauseVideo();
         } else if (this.currentVideoId) {
-            this.loadVideo(this.currentVideoId);
-            this.setPlaying(true);
+            var state = this.player.getPlayerState();
+            if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.CUED) {
+                this.player.playVideo();
+            } else {
+                this.loadAndPlay(this.currentVideoId);
+            }
         }
     }
 
@@ -384,6 +489,18 @@ class MusicPlayer {
 
         if (playing) {
             this.startVisualizerAnimation();
+            // Update title from player if available
+            if (this.player && this.playerReady && this.currentStation === 'Custom YouTube') {
+                try {
+                    var videoData = this.player.getVideoData();
+                    if (videoData && videoData.title) {
+                        this.nowPlayingText.textContent = '🎵 ' + videoData.title;
+                        this.currentStation = '🎵 ' + videoData.title;
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            }
         } else {
             this.stopVisualizerAnimation();
         }
@@ -754,21 +871,17 @@ class Calculator {
             return;
         }
 
-        // Glitch effect
         this.resultEl.classList.add('glitch');
         var resultEl = this.resultEl;
         setTimeout(function() { resultEl.classList.remove('glitch'); }, 300);
 
-        // Screen shake
         this.calculatorEl.classList.add('screen-shake');
         var calcEl = this.calculatorEl;
         setTimeout(function() { calcEl.classList.remove('screen-shake'); }, 400);
 
-        // Bounce
         this.resultEl.classList.add('bounce');
         setTimeout(function() { resultEl.classList.remove('bounce'); }, 400);
 
-        // Confetti
         if (!isNaN(result) && isFinite(result)) {
             var rect = this.calculatorEl.getBoundingClientRect();
             this.confetti.burst(rect.left + rect.width / 2, rect.top + rect.height / 3);
@@ -1052,10 +1165,10 @@ class Calculator {
 
 // ===== Initialize =====
 document.addEventListener('DOMContentLoaded', function() {
-    // Matrix Rain
-    var matrixCanvas = document.getElementById('matrixCanvas');
-    if (matrixCanvas) {
-        new MatrixRain(matrixCanvas);
+    // Rain Effect
+    var rainCanvas = document.getElementById('rainCanvas');
+    if (rainCanvas) {
+        new RainEffect(rainCanvas);
     }
 
     // Particle System
