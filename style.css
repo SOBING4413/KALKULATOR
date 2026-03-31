@@ -1094,7 +1094,7 @@ body {
     50% { height: calc(5px + 35px * var(--bar-height, 0.5)); }
 }
 
-/* YouTube Player Container - visible inside panel */
+/* YouTube Player Container */
 .yt-player-container {
     width: 100%;
     padding: 0 18px;
@@ -1329,6 +1329,27 @@ body {
     transform: translateX(-50%) translateY(0);
 }
 
+/* ===== Footer Credit ===== */
+.footer-credit {
+    position: fixed;
+    bottom: 12px;
+    right: 24px;
+    z-index: 100;
+    font-size: 11px;
+    color: var(--text-tertiary);
+    opacity: 0.5;
+    transition: opacity 0.3s ease;
+    animation: fadeSlideUp 0.6s ease 0.8s both;
+}
+
+.footer-credit:hover {
+    opacity: 1;
+}
+
+.footer-credit .gradient-text {
+    font-weight: 600;
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 768px) {
     .app-container {
@@ -1368,6 +1389,12 @@ body {
     .music-player {
         bottom: 16px;
         left: 16px;
+    }
+
+    .footer-credit {
+        bottom: 8px;
+        right: 16px;
+        font-size: 10px;
     }
 }
 
