@@ -358,7 +358,7 @@ class ConfettiSystem {
     }
 }
 
-// ===== Music Player with YouTube IFrame API =====
+// ===== Music Player with YouTube IFrame API (OPTIMIZED - FAST INIT) =====
 var ytPlayerReady = false;
 var onYouTubeIframeAPIReadyCallback = null;
 
@@ -380,6 +380,7 @@ class MusicPlayer {
         this.playerReady = false;
         this.playerCreated = false;
         this.pendingVideoId = null;
+        this.pendingName = null;
 
         this.toggle = document.getElementById('musicToggle');
         this.panel = document.getElementById('musicPanel');
@@ -415,7 +416,9 @@ class MusicPlayer {
             btn.addEventListener('click', function() {
                 var videoId = btn.dataset.video;
                 var name = btn.dataset.name;
-                self.playStation(videoId, name, btn);
+                if (videoId) {
+                    self.playStation(videoId, name, btn);
+                }
             });
         });
 
@@ -430,17 +433,40 @@ class MusicPlayer {
             bar.style.setProperty('--bar-height', (0.2 + Math.random() * 0.8).toFixed(2));
         });
 
+        // === OPTIMIZED: Langsung buat player tanpa tunggu user ===
         if (ytPlayerReady) {
             this.createPlayer();
         } else {
             onYouTubeIframeAPIReadyCallback = function() {
                 self.createPlayer();
             };
+            // Fallback polling: cek setiap 200ms apakah YT API sudah ready
+            this.pollForYTAPI();
         }
+    }
+
+    // === NEW: Polling cepat untuk YouTube API ===
+    pollForYTAPI() {
+        var self = this;
+        var attempts = 0;
+        var maxAttempts = 50; // 50 x 200ms = 10 detik max
+        var poll = setInterval(function() {
+            attempts++;
+            if (typeof YT !== 'undefined' && YT.Player) {
+                ytPlayerReady = true;
+                clearInterval(poll);
+                if (!self.playerCreated) {
+                    self.createPlayer();
+                }
+            } else if (attempts >= maxAttempts) {
+                clearInterval(poll);
+            }
+        }, 200);
     }
 
     createPlayer() {
         if (this.playerCreated) return;
+        if (typeof YT === 'undefined' || !YT.Player) return;
         this.playerCreated = true;
         var self = this;
         try {
@@ -456,9 +482,13 @@ class MusicPlayer {
                     onReady: function() {
                         self.playerReady = true;
                         self.player.setVolume(parseInt(self.volumeSlider.value));
+                        // Langsung play video yang pending (jika user sudah klik station sebelum player ready)
                         if (self.pendingVideoId) {
                             var vid = self.pendingVideoId;
+                            var name = self.pendingName;
                             self.pendingVideoId = null;
+                            self.pendingName = null;
+                            if (name) self.nowPlayingText.textContent = 'Loading: ' + name;
                             self.loadAndPlay(vid);
                         }
                     },
@@ -485,8 +515,10 @@ class MusicPlayer {
                 }
             });
         } catch (err) {
-            this.nowPlayingText.textContent = 'Gagal memuat YouTube Player';
             this.playerCreated = false;
+            // Retry sekali setelah 1 detik
+            var self2 = this;
+            setTimeout(function() { self2.createPlayer(); }, 1000);
         }
     }
 
@@ -534,10 +566,17 @@ class MusicPlayer {
     }
 
     loadAndPlay(videoId) {
+        // === OPTIMIZED: Jika player belum ready, simpan pending dan tunggu ===
         if (!this.playerReady) {
             this.pendingVideoId = videoId;
-            this.nowPlayingText.textContent = 'Menunggu player siap...';
-            if (!this.playerCreated && ytPlayerReady) this.createPlayer();
+            this.pendingName = this.currentStation;
+            this.nowPlayingText.textContent = 'Menyiapkan player... ⏳';
+            // Pastikan player sedang dibuat
+            if (!this.playerCreated) {
+                if (typeof YT !== 'undefined' && YT.Player) {
+                    this.createPlayer();
+                }
+            }
             return;
         }
         try {
@@ -550,7 +589,7 @@ class MusicPlayer {
 
     togglePlayPause() {
         if (!this.player || !this.playerReady) {
-            this.nowPlayingText.textContent = 'Player belum siap...';
+            this.nowPlayingText.textContent = 'Tunggu sebentar... ⏳';
             return;
         }
         if (this.isPlaying) {
@@ -1152,27 +1191,18 @@ class Calculator {
 
 // ===== Initialize =====
 document.addEventListener('DOMContentLoaded', function() {
-    // Parallax Background
     new ParallaxBackground();
-
-    // Lightning Effect
     new LightningEffect();
 
-    // Rain Effect
     var rainCanvas = document.getElementById('rainCanvas');
     if (rainCanvas) new RainEffect(rainCanvas);
 
-    // Particle System
     var particleCanvas = document.getElementById('particleCanvas');
     if (particleCanvas) new ParticleSystem(particleCanvas);
 
-    // Confetti
     var confettiCanvas = document.getElementById('confettiCanvas');
     var confetti = new ConfettiSystem(confettiCanvas);
 
-    // Calculator
     new Calculator(confetti);
-
-    // Music Player
     new MusicPlayer();
 });
