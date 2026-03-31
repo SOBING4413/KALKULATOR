@@ -32,7 +32,6 @@ class RainEffect {
 
     animate() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
         for (var i = 0; i < this.drops.length; i++) {
             var drop = this.drops[i];
             this.ctx.beginPath();
@@ -41,15 +40,12 @@ class RainEffect {
             this.ctx.strokeStyle = 'rgba(180, 220, 255, ' + drop.opacity + ')';
             this.ctx.lineWidth = drop.width;
             this.ctx.stroke();
-
             drop.y += drop.speed;
-
             if (drop.y > this.canvas.height) {
                 drop.y = -drop.length;
                 drop.x = Math.random() * this.canvas.width;
             }
         }
-
         requestAnimationFrame(() => this.animate());
     }
 }
@@ -130,7 +126,6 @@ class ParticleSystem {
             var p = this.particles[i];
             p.x += p.vx;
             p.y += p.vy;
-
             if (p.x < 0) p.x = this.canvas.width;
             if (p.x > this.canvas.width) p.x = 0;
             if (p.y < 0) p.y = this.canvas.height;
@@ -144,7 +139,6 @@ class ParticleSystem {
                 p.vx += dx * force * 0.01;
                 p.vy += dy * force * 0.01;
             }
-
             p.vx *= 0.99;
             p.vy *= 0.99;
 
@@ -179,7 +173,6 @@ class ParticleSystem {
                 }
             }
         }
-
         requestAnimationFrame(() => this.animate());
     }
 }
@@ -234,7 +227,6 @@ class ConfettiSystem {
             p.vx *= 0.99;
             p.life -= p.decay;
             p.rotation += p.rotSpeed;
-
             if (p.life > 0) {
                 this.ctx.save();
                 this.ctx.translate(p.x, p.y);
@@ -262,12 +254,12 @@ class ConfettiSystem {
 }
 
 // ===== Music Player with YouTube IFrame API =====
+// Global YouTube API ready flag
 var ytPlayerReady = false;
-var ytPlayerInstance = null;
 var onYouTubeIframeAPIReadyCallback = null;
 
-// This function is called by the YouTube IFrame API when it's ready
 window.onYouTubeIframeAPIReady = function() {
+    console.log('[MusicPlayer] YouTube IFrame API is ready');
     ytPlayerReady = true;
     if (onYouTubeIframeAPIReadyCallback) {
         onYouTubeIframeAPIReadyCallback();
@@ -283,6 +275,8 @@ class MusicPlayer {
         this.vizInterval = null;
         this.player = null;
         this.playerReady = false;
+        this.playerCreated = false;
+        this.pendingVideoId = null;
 
         this.toggle = document.getElementById('musicToggle');
         this.panel = document.getElementById('musicPanel');
@@ -311,8 +305,6 @@ class MusicPlayer {
             if (e.key === 'Enter') self.playCustomUrl();
             e.stopPropagation();
         });
-
-        // Prevent keyboard calculator actions when typing in URL input
         this.urlInput.addEventListener('keyup', function(e) { e.stopPropagation(); });
         this.urlInput.addEventListener('keypress', function(e) { e.stopPropagation(); });
 
@@ -335,7 +327,7 @@ class MusicPlayer {
             bar.style.setProperty('--bar-height', (0.2 + Math.random() * 0.8).toFixed(2));
         });
 
-        // Initialize YouTube player when API is ready
+        // Initialize YouTube player
         if (ytPlayerReady) {
             this.createPlayer();
         } else {
@@ -346,50 +338,78 @@ class MusicPlayer {
     }
 
     createPlayer() {
+        if (this.playerCreated) return;
+        this.playerCreated = true;
+
         var self = this;
-        this.player = new YT.Player('ytPlayer', {
-            height: '1',
-            width: '1',
-            playerVars: {
-                autoplay: 0,
-                controls: 0,
-                disablekb: 1,
-                fs: 0,
-                modestbranding: 1,
-                rel: 0,
-                showinfo: 0,
-                origin: window.location.origin
-            },
-            events: {
-                onReady: function() {
-                    self.playerReady = true;
-                    ytPlayerInstance = self.player;
-                    self.player.setVolume(parseInt(self.volumeSlider.value));
+        console.log('[MusicPlayer] Creating YouTube player...');
+
+        try {
+            this.player = new YT.Player('ytPlayer', {
+                height: '180',
+                width: '280',
+                playerVars: {
+                    autoplay: 0,
+                    controls: 1,
+                    disablekb: 0,
+                    fs: 0,
+                    modestbranding: 1,
+                    rel: 0,
+                    playsinline: 1,
+                    enablejsapi: 1,
+                    origin: window.location.origin
                 },
-                onStateChange: function(event) {
-                    // YT.PlayerState: PLAYING=1, PAUSED=2, ENDED=0, BUFFERING=3
-                    if (event.data === YT.PlayerState.PLAYING) {
-                        self.setPlaying(true);
-                    } else if (event.data === YT.PlayerState.PAUSED) {
-                        self.setPlaying(false);
-                    } else if (event.data === YT.PlayerState.ENDED) {
-                        // Loop: replay the video
-                        if (self.currentVideoId) {
-                            self.player.seekTo(0);
-                            self.player.playVideo();
+                events: {
+                    onReady: function(event) {
+                        console.log('[MusicPlayer] Player is ready!');
+                        self.playerReady = true;
+                        self.player.setVolume(parseInt(self.volumeSlider.value));
+                        // If there was a pending video, play it now
+                        if (self.pendingVideoId) {
+                            var vid = self.pendingVideoId;
+                            self.pendingVideoId = null;
+                            self.loadAndPlay(vid);
                         }
+                    },
+                    onStateChange: function(event) {
+                        console.log('[MusicPlayer] State changed:', event.data);
+                        if (event.data === YT.PlayerState.PLAYING) {
+                            self.setPlaying(true);
+                        } else if (event.data === YT.PlayerState.PAUSED) {
+                            self.setPlaying(false);
+                        } else if (event.data === YT.PlayerState.ENDED) {
+                            // Loop
+                            if (self.currentVideoId) {
+                                self.player.seekTo(0);
+                                self.player.playVideo();
+                            }
+                        } else if (event.data === YT.PlayerState.BUFFERING) {
+                            self.nowPlayingText.textContent = '⏳ Buffering...';
+                        }
+                    },
+                    onError: function(event) {
+                        console.warn('[MusicPlayer] Error:', event.data);
+                        var errorMessages = {
+                            2: 'ID video tidak valid',
+                            5: 'Video tidak bisa diputar di HTML5',
+                            100: 'Video tidak ditemukan atau private',
+                            101: 'Video tidak bisa di-embed',
+                            150: 'Video tidak bisa di-embed'
+                        };
+                        var msg = errorMessages[event.data] || 'Error code: ' + event.data;
+                        self.nowPlayingText.textContent = '❌ ' + msg;
+                        self.setPlaying(false);
+                        setTimeout(function() {
+                            self.nowPlayingText.textContent = self.currentStation || 'Pilih station atau paste link YouTube';
+                        }, 4000);
                     }
-                },
-                onError: function(event) {
-                    console.warn('YouTube Player Error:', event.data);
-                    self.nowPlayingText.textContent = 'Error: Video tidak bisa diputar (Code: ' + event.data + ')';
-                    self.setPlaying(false);
-                    setTimeout(function() {
-                        self.nowPlayingText.textContent = self.currentStation || 'Pilih station atau paste link YouTube';
-                    }, 3000);
                 }
-            }
-        });
+            });
+        } catch (err) {
+            console.error('[MusicPlayer] Failed to create player:', err);
+            this.nowPlayingText.textContent = '⚠️ Gagal memuat YouTube Player';
+            this.playerCreated = false;
+        }
     }
 
     togglePanel() {
@@ -402,7 +422,7 @@ class MusicPlayer {
         if (btnEl) btnEl.classList.add('active');
         this.currentVideoId = videoId;
         this.currentStation = name;
-        this.nowPlayingText.textContent = name;
+        this.nowPlayingText.textContent = '⏳ Loading: ' + name;
         this.loadAndPlay(videoId);
     }
 
@@ -414,14 +434,14 @@ class MusicPlayer {
             document.querySelectorAll('.station-btn').forEach(function(b) { b.classList.remove('active'); });
             this.currentVideoId = videoId;
             this.currentStation = 'Custom YouTube';
-            this.nowPlayingText.textContent = 'Loading...';
+            this.nowPlayingText.textContent = '⏳ Loading...';
             this.loadAndPlay(videoId);
         } else {
             var self = this;
-            this.nowPlayingText.textContent = '❌ URL tidak valid';
+            this.nowPlayingText.textContent = '❌ URL tidak valid. Coba format: youtube.com/watch?v=xxx';
             setTimeout(function() {
                 self.nowPlayingText.textContent = self.currentStation || 'Pilih station atau paste link YouTube';
-            }, 2000);
+            }, 3000);
         }
     }
 
@@ -438,43 +458,49 @@ class MusicPlayer {
     }
 
     loadAndPlay(videoId) {
-        if (this.player && this.playerReady) {
+        console.log('[MusicPlayer] loadAndPlay:', videoId, 'playerReady:', this.playerReady);
+
+        if (!this.playerReady) {
+            // Store pending video and wait for player to be ready
+            this.pendingVideoId = videoId;
+            this.nowPlayingText.textContent = '⏳ Menunggu player siap...';
+
+            // If player hasn't been created yet, try creating it
+            if (!this.playerCreated && ytPlayerReady) {
+                this.createPlayer();
+            }
+            return;
+        }
+
+        try {
             this.player.loadVideoById({
                 videoId: videoId,
                 suggestedQuality: 'small'
             });
             this.player.setVolume(parseInt(this.volumeSlider.value));
-        } else {
-            // Player not ready yet, wait and retry
-            var self = this;
-            var retryCount = 0;
-            var retryInterval = setInterval(function() {
-                retryCount++;
-                if (self.player && self.playerReady) {
-                    clearInterval(retryInterval);
-                    self.player.loadVideoById({
-                        videoId: videoId,
-                        suggestedQuality: 'small'
-                    });
-                    self.player.setVolume(parseInt(self.volumeSlider.value));
-                } else if (retryCount > 20) {
-                    clearInterval(retryInterval);
-                    self.nowPlayingText.textContent = '⚠️ Player belum siap, coba lagi...';
-                }
-            }, 500);
+        } catch (err) {
+            console.error('[MusicPlayer] loadVideoById error:', err);
+            this.nowPlayingText.textContent = '⚠️ Gagal memutar video';
         }
     }
 
     togglePlayPause() {
-        if (!this.player || !this.playerReady) return;
+        if (!this.player || !this.playerReady) {
+            this.nowPlayingText.textContent = '⏳ Player belum siap...';
+            return;
+        }
 
         if (this.isPlaying) {
             this.player.pauseVideo();
         } else if (this.currentVideoId) {
-            var state = this.player.getPlayerState();
-            if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.CUED) {
-                this.player.playVideo();
-            } else {
+            try {
+                var state = this.player.getPlayerState();
+                if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.CUED) {
+                    this.player.playVideo();
+                } else {
+                    this.loadAndPlay(this.currentVideoId);
+                }
+            } catch (err) {
                 this.loadAndPlay(this.currentVideoId);
             }
         }
@@ -489,8 +515,8 @@ class MusicPlayer {
 
         if (playing) {
             this.startVisualizerAnimation();
-            // Update title from player if available
-            if (this.player && this.playerReady && this.currentStation === 'Custom YouTube') {
+            // Update title from player
+            if (this.player && this.playerReady) {
                 try {
                     var videoData = this.player.getVideoData();
                     if (videoData && videoData.title) {
@@ -575,7 +601,6 @@ class Calculator {
                     setTimeout(function() { btn.classList.remove('btn-shockwave'); }, 600);
                 }
             });
-
             btn.addEventListener('mousedown', function(e) {
                 var rect = btn.getBoundingClientRect();
                 var x = ((e.clientX - rect.left) / rect.width) * 100;
@@ -592,16 +617,13 @@ class Calculator {
         var size = Math.max(rect.width, rect.height) * 2.5;
         var x = e.clientX - rect.left - size / 2;
         var y = e.clientY - rect.top - size / 2;
-
         ripple.style.cssText = 'position:absolute;width:' + size + 'px;height:' + size + 'px;left:' + x + 'px;top:' + y + 'px;border-radius:50%;background:var(--ripple);transform:scale(0);animation:rippleAnim 0.6s ease-out forwards;pointer-events:none;z-index:1;';
-
         if (!document.getElementById('rippleStyle')) {
             var style = document.createElement('style');
             style.id = 'rippleStyle';
             style.textContent = '@keyframes rippleAnim { to { transform: scale(1); opacity: 0; } }';
             document.head.appendChild(style);
         }
-
         btn.appendChild(ripple);
         setTimeout(function() { ripple.remove(); }, 600);
     }
@@ -611,25 +633,20 @@ class Calculator {
         var hintTimeout;
         document.addEventListener('keydown', function(e) {
             var key = e.key;
-
             if ((e.ctrlKey || e.metaKey) && (key === 'c' || key === 'v')) {
                 if (key === 'c') { e.preventDefault(); self.copyResult(); }
                 if (key === 'v') { e.preventDefault(); self.pasteValue(); }
                 return;
             }
-
             if (document.activeElement && document.activeElement.classList.contains('url-input')) {
                 return;
             }
-
             e.preventDefault();
-
             self.keyboardHint.classList.add('show');
             clearTimeout(hintTimeout);
             hintTimeout = setTimeout(function() {
                 self.keyboardHint.classList.remove('show');
             }, 1500);
-
             var keyMap = {
                 '0': '0', '1': '1', '2': '2', '3': '3', '4': '4',
                 '5': '5', '6': '6', '7': '7', '8': '8', '9': '9',
@@ -641,7 +658,6 @@ class Calculator {
                 'Escape': 'clear',
                 '(': 'paren-open', ')': 'paren-close'
             };
-
             if (keyMap[key]) {
                 self.handleAction(keyMap[key]);
                 var btn = document.querySelector('[data-action="' + keyMap[key] + '"]');
@@ -662,7 +678,6 @@ class Calculator {
         var self = this;
         var value = this.currentInput === 'Error' ? '' : this.currentInput;
         if (!value) return;
-
         navigator.clipboard.writeText(value).then(function() {
             self.copyToast.classList.add('show');
             self.copyBtn.classList.add('copied');
@@ -742,7 +757,6 @@ class Calculator {
             self.historyPanel.classList.toggle('open', self.historyOpen);
             toggle.classList.toggle('active', self.historyOpen);
         });
-
         document.getElementById('clearHistory').addEventListener('click', function() {
             self.history = [];
             self.saveHistory();
@@ -863,31 +877,25 @@ class Calculator {
         var current = parseFloat(this.currentInput);
         var result;
         var fullExpr;
-
         if (this.previousValue !== null) {
             result = this.compute(this.previousValue, current, this.operator);
             fullExpr = this.expression + ' ' + this.formatDisplay(current);
         } else {
             return;
         }
-
         this.resultEl.classList.add('glitch');
         var resultEl = this.resultEl;
         setTimeout(function() { resultEl.classList.remove('glitch'); }, 300);
-
         this.calculatorEl.classList.add('screen-shake');
         var calcEl = this.calculatorEl;
         setTimeout(function() { calcEl.classList.remove('screen-shake'); }, 400);
-
         this.resultEl.classList.add('bounce');
         setTimeout(function() { resultEl.classList.remove('bounce'); }, 400);
-
         if (!isNaN(result) && isFinite(result)) {
             var rect = this.calculatorEl.getBoundingClientRect();
             this.confetti.burst(rect.left + rect.width / 2, rect.top + rect.height / 3);
             this.addHistory(fullExpr, result);
         }
-
         this.expression = '';
         this.currentInput = this.formatNumber(result);
         this.lastResult = result;
@@ -902,7 +910,6 @@ class Calculator {
         var current = parseFloat(this.currentInput);
         var result;
         var expr;
-
         switch (func) {
             case 'sin':
                 result = Math.sin(current * Math.PI / 180);
@@ -935,18 +942,15 @@ class Calculator {
             default:
                 return;
         }
-
         this.addHistory(expr, result);
         this.expression = expr;
         this.currentInput = this.formatNumber(result);
         this.waitingForOperand = true;
-
         this.resultEl.classList.add('glitch');
         var el = this.resultEl;
         setTimeout(function() { el.classList.remove('glitch'); }, 300);
         this.resultEl.classList.add('bounce');
         setTimeout(function() { el.classList.remove('bounce'); }, 400);
-
         this.updateDisplay();
     }
 
@@ -954,12 +958,10 @@ class Calculator {
         var current = parseFloat(this.currentInput);
         var result = Math.pow(current, power);
         var expr = this.formatDisplay(current) + (power === 2 ? '\u00B2' : '\u00B3');
-
         this.addHistory(expr, result);
         this.expression = expr;
         this.currentInput = this.formatNumber(result);
         this.waitingForOperand = true;
-
         this.resultEl.classList.add('bounce');
         var el = this.resultEl;
         setTimeout(function() { el.classList.remove('bounce'); }, 400);
@@ -982,7 +984,6 @@ class Calculator {
         this.expression = expr;
         this.currentInput = this.formatNumber(result);
         this.waitingForOperand = true;
-
         this.resultEl.classList.add('bounce');
         var el = this.resultEl;
         setTimeout(function() { el.classList.remove('bounce'); }, 400);
@@ -1002,7 +1003,6 @@ class Calculator {
         this.expression = expr;
         this.currentInput = this.formatNumber(result);
         this.waitingForOperand = true;
-
         this.resultEl.classList.add('bounce');
         var el = this.resultEl;
         setTimeout(function() { el.classList.remove('bounce'); }, 400);
@@ -1046,7 +1046,6 @@ class Calculator {
         var displayValue = this.currentInput === 'Error' ? 'Error' : this.formatDisplayValue(this.currentInput);
         this.resultEl.textContent = displayValue;
         this.expressionEl.textContent = this.expression;
-
         var len = displayValue.length;
         this.resultEl.classList.remove('shrink', 'shrink-more');
         if (len > 12) {
@@ -1071,7 +1070,6 @@ class Calculator {
         var parts = value.split('.');
         var intPart = parts[0];
         var decPart = parts[1];
-
         if (!intPart.includes('e') && !intPart.includes('E')) {
             var isNeg = intPart.startsWith('-');
             var absInt = isNeg ? intPart.slice(1) : intPart;
@@ -1114,14 +1112,12 @@ class Calculator {
             this.historyList.innerHTML = '<div class="history-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity="0.3"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><p>Belum ada riwayat</p></div>';
             return;
         }
-
         var html = '';
         for (var i = 0; i < this.history.length; i++) {
             var item = this.history[i];
             html += '<div class="history-item" data-index="' + i + '" style="animation-delay: ' + (i * 0.05) + 's"><div class="history-expr">' + this.escapeHtml(item.expression) + '</div><div class="history-result">= ' + this.formatDisplayValue(item.result) + '</div></div>';
         }
         this.historyList.innerHTML = html;
-
         this.historyList.querySelectorAll('.history-item').forEach(function(el) {
             el.addEventListener('click', function() {
                 var index = parseInt(el.dataset.index);
