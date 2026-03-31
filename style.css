@@ -33,7 +33,7 @@
     --mist-2: rgba(34, 211, 238, 0.03);
     --mist-3: rgba(255, 255, 255, 0.02);
     --neon-glow: 0 0 15px rgba(74, 222, 128, 0.2), 0 0 30px rgba(74, 222, 128, 0.1);
-    --bg-image: url('https://mgx-backend-cdn.metadl.com/generate/images/1075147/2026-03-31/ae11326f-596c-41f5-9cbe-9fb128598d2f.png');
+    --bg-image: url('https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1920&q=80');
 }
 
 [data-theme="forest"] {
@@ -69,7 +69,7 @@
     --mist-2: rgba(163, 230, 53, 0.03);
     --mist-3: rgba(255, 255, 255, 0.02);
     --neon-glow: 0 0 15px rgba(34, 197, 94, 0.2), 0 0 30px rgba(34, 197, 94, 0.1);
-    --bg-image: url('https://mgx-backend-cdn.metadl.com/generate/images/1075147/2026-03-31/fa7327bb-ea9d-4124-ac57-a92e20e4b431.png');
+    --bg-image: url('https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&q=80');
 }
 
 [data-theme="mountain"] {
@@ -105,7 +105,7 @@
     --mist-2: rgba(167, 139, 250, 0.03);
     --mist-3: rgba(255, 255, 255, 0.02);
     --neon-glow: 0 0 15px rgba(56, 189, 248, 0.2), 0 0 30px rgba(56, 189, 248, 0.1);
-    --bg-image: url('https://mgx-backend-cdn.metadl.com/generate/images/1075147/2026-03-31/52589a82-96bd-409d-b383-0c001c9f3b9f.png');
+    --bg-image: url('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1920&q=80');
 }
 
 [data-theme="zen"] {
@@ -141,7 +141,7 @@
     --mist-2: rgba(251, 146, 60, 0.03);
     --mist-3: rgba(255, 255, 255, 0.02);
     --neon-glow: 0 0 15px rgba(244, 114, 182, 0.2), 0 0 30px rgba(244, 114, 182, 0.1);
-    --bg-image: url('https://mgx-backend-cdn.metadl.com/generate/images/1075147/2026-03-31/6d1bf9b7-8bf5-4ff9-9ee1-6a0f466e0d7b.png');
+    --bg-image: url('https://images.unsplash.com/photo-1528164344705-47542687000d?w=1920&q=80');
 }
 
 /* ===== Reset & Base ===== */
@@ -326,9 +326,7 @@ body {
     position: relative;
 }
 
-.theme-btn:hover {
-    transform: scale(1.2);
-}
+.theme-btn:hover { transform: scale(1.2); }
 
 .theme-btn.active {
     border-color: var(--text-primary);
@@ -343,9 +341,7 @@ body {
     transition: transform 0.3s ease;
 }
 
-.theme-btn:hover .theme-dot {
-    transform: scale(1.1);
-}
+.theme-btn:hover .theme-dot { transform: scale(1.1); }
 
 /* ===== App Container ===== */
 .app-container {
@@ -1000,7 +996,7 @@ body {
     opacity: 0;
     pointer-events: none;
     transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    max-height: 500px;
+    max-height: 600px;
 }
 
 .music-panel.open {
@@ -1096,6 +1092,30 @@ body {
 @keyframes vizBounce {
     0%, 100% { height: 5px; }
     50% { height: calc(5px + 35px * var(--bar-height, 0.5)); }
+}
+
+/* YouTube Player Container - visible inside panel */
+.yt-player-container {
+    width: 100%;
+    padding: 0 18px;
+    margin: 4px 0;
+    border-radius: 12px;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.4s ease, opacity 0.3s ease;
+    opacity: 0;
+}
+
+.yt-player-container.visible {
+    max-height: 200px;
+    opacity: 1;
+}
+
+.yt-player-container iframe {
+    width: 100%;
+    height: 160px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
 }
 
 /* Now Playing */
