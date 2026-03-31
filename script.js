@@ -1,11 +1,78 @@
-// ===== Rain Effect =====
+// ===== Parallax Background =====
+class ParallaxBackground {
+    constructor() {
+        this.bgImage = document.getElementById('bgImage');
+        this.targetX = 0;
+        this.targetY = 0;
+        this.currentX = 0;
+        this.currentY = 0;
+        this.maxOffset = 30;
+        this.ease = 0.04;
+        this.bindEvents();
+        this.animate();
+    }
+
+    bindEvents() {
+        var self = this;
+        window.addEventListener('mousemove', function(e) {
+            var centerX = window.innerWidth / 2;
+            var centerY = window.innerHeight / 2;
+            self.targetX = ((e.clientX - centerX) / centerX) * self.maxOffset;
+            self.targetY = ((e.clientY - centerY) / centerY) * self.maxOffset;
+        });
+        window.addEventListener('resize', function() {
+            self.targetX = 0;
+            self.targetY = 0;
+        });
+    }
+
+    animate() {
+        var self = this;
+        this.currentX += (this.targetX - this.currentX) * this.ease;
+        this.currentY += (this.targetY - this.currentY) * this.ease;
+        if (this.bgImage) {
+            this.bgImage.style.transform = 'translate(' + this.currentX + 'px, ' + this.currentY + 'px) scale(1.08)';
+        }
+        requestAnimationFrame(function() { self.animate(); });
+    }
+}
+
+// ===== Lightning Effect =====
+class LightningEffect {
+    constructor() {
+        this.flash = document.getElementById('lightningFlash');
+        this.scheduleNext();
+    }
+
+    scheduleNext() {
+        var self = this;
+        var delay = 8000 + Math.random() * 20000;
+        setTimeout(function() {
+            self.trigger();
+            self.scheduleNext();
+        }, delay);
+    }
+
+    trigger() {
+        var self = this;
+        if (!this.flash) return;
+        this.flash.classList.add('active');
+        setTimeout(function() {
+            self.flash.classList.remove('active');
+        }, 400);
+    }
+}
+
+// ===== Rain Effect - Enhanced =====
 class RainEffect {
     constructor(canvas) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.drops = [];
+        this.splashes = [];
         this.resize();
-        window.addEventListener('resize', () => this.resize());
+        var self = this;
+        window.addEventListener('resize', function() { self.resize(); });
         this.createDrops();
         this.animate();
     }
@@ -16,37 +83,72 @@ class RainEffect {
     }
 
     createDrops() {
-        var count = Math.min(100, Math.floor(this.canvas.width / 8));
+        var count = Math.min(150, Math.floor(this.canvas.width / 6));
         this.drops = [];
         for (var i = 0; i < count; i++) {
             this.drops.push({
                 x: Math.random() * this.canvas.width,
                 y: Math.random() * this.canvas.height,
-                length: 10 + Math.random() * 20,
-                speed: 2 + Math.random() * 4,
-                opacity: 0.05 + Math.random() * 0.15,
-                width: 0.5 + Math.random() * 1
+                length: 12 + Math.random() * 25,
+                speed: 3 + Math.random() * 6,
+                opacity: 0.04 + Math.random() * 0.12,
+                width: 0.4 + Math.random() * 1.2,
+                wind: -0.5 + Math.random() * 0.3
             });
         }
     }
 
     animate() {
+        var self = this;
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
         for (var i = 0; i < this.drops.length; i++) {
             var drop = this.drops[i];
             this.ctx.beginPath();
             this.ctx.moveTo(drop.x, drop.y);
-            this.ctx.lineTo(drop.x + 0.5, drop.y + drop.length);
-            this.ctx.strokeStyle = 'rgba(180, 220, 255, ' + drop.opacity + ')';
+            this.ctx.lineTo(drop.x + drop.wind * 3, drop.y + drop.length);
+            this.ctx.strokeStyle = 'rgba(180, 210, 255, ' + drop.opacity + ')';
             this.ctx.lineWidth = drop.width;
+            this.ctx.lineCap = 'round';
             this.ctx.stroke();
+
             drop.y += drop.speed;
+            drop.x += drop.wind;
+
             if (drop.y > this.canvas.height) {
+                if (Math.random() > 0.7) {
+                    this.splashes.push({
+                        x: drop.x,
+                        y: this.canvas.height - 2,
+                        radius: 1,
+                        maxRadius: 3 + Math.random() * 4,
+                        opacity: 0.15 + Math.random() * 0.1,
+                        speed: 0.3 + Math.random() * 0.3
+                    });
+                }
                 drop.y = -drop.length;
                 drop.x = Math.random() * this.canvas.width;
             }
         }
-        requestAnimationFrame(() => this.animate());
+
+        for (var j = this.splashes.length - 1; j >= 0; j--) {
+            var splash = this.splashes[j];
+            splash.radius += splash.speed;
+            splash.opacity -= 0.008;
+
+            if (splash.opacity <= 0 || splash.radius >= splash.maxRadius) {
+                this.splashes.splice(j, 1);
+                continue;
+            }
+
+            this.ctx.beginPath();
+            this.ctx.arc(splash.x, splash.y, splash.radius, 0, Math.PI * 2);
+            this.ctx.strokeStyle = 'rgba(180, 210, 255, ' + splash.opacity + ')';
+            this.ctx.lineWidth = 0.5;
+            this.ctx.stroke();
+        }
+
+        requestAnimationFrame(function() { self.animate(); });
     }
 }
 
@@ -106,6 +208,7 @@ class ParticleSystem {
     }
 
     animate() {
+        var self = this;
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         var color = this.getParticleColor();
         var time = Date.now() * 0.001;
@@ -173,7 +276,7 @@ class ParticleSystem {
                 }
             }
         }
-        requestAnimationFrame(() => this.animate());
+        requestAnimationFrame(function() { self.animate(); });
     }
 }
 
@@ -186,9 +289,10 @@ class ConfettiSystem {
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
         this.animating = false;
-        window.addEventListener('resize', () => {
-            this.canvas.width = window.innerWidth;
-            this.canvas.height = window.innerHeight;
+        var self = this;
+        window.addEventListener('resize', function() {
+            self.canvas.width = window.innerWidth;
+            self.canvas.height = window.innerHeight;
         });
     }
 
@@ -218,6 +322,7 @@ class ConfettiSystem {
     }
 
     animate() {
+        var self = this;
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         for (var i = 0; i < this.particles.length; i++) {
             var p = this.particles[i];
@@ -245,7 +350,7 @@ class ConfettiSystem {
         }
         this.particles = this.particles.filter(function(p) { return p.life > 0; });
         if (this.particles.length > 0) {
-            requestAnimationFrame(() => this.animate());
+            requestAnimationFrame(function() { self.animate(); });
         } else {
             this.animating = false;
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -254,12 +359,10 @@ class ConfettiSystem {
 }
 
 // ===== Music Player with YouTube IFrame API =====
-// Global YouTube API ready flag
 var ytPlayerReady = false;
 var onYouTubeIframeAPIReadyCallback = null;
 
 window.onYouTubeIframeAPIReady = function() {
-    console.log('[MusicPlayer] YouTube IFrame API is ready');
     ytPlayerReady = true;
     if (onYouTubeIframeAPIReadyCallback) {
         onYouTubeIframeAPIReadyCallback();
@@ -327,7 +430,6 @@ class MusicPlayer {
             bar.style.setProperty('--bar-height', (0.2 + Math.random() * 0.8).toFixed(2));
         });
 
-        // Initialize YouTube player
         if (ytPlayerReady) {
             this.createPlayer();
         } else {
@@ -340,31 +442,20 @@ class MusicPlayer {
     createPlayer() {
         if (this.playerCreated) return;
         this.playerCreated = true;
-
         var self = this;
-        console.log('[MusicPlayer] Creating YouTube player...');
-
         try {
             this.player = new YT.Player('ytPlayer', {
                 height: '180',
                 width: '280',
                 playerVars: {
-                    autoplay: 0,
-                    controls: 1,
-                    disablekb: 0,
-                    fs: 0,
-                    modestbranding: 1,
-                    rel: 0,
-                    playsinline: 1,
-                    enablejsapi: 1,
-                    origin: window.location.origin
+                    autoplay: 0, controls: 1, disablekb: 0, fs: 0,
+                    modestbranding: 1, rel: 0, playsinline: 1,
+                    enablejsapi: 1, origin: window.location.origin
                 },
                 events: {
-                    onReady: function(event) {
-                        console.log('[MusicPlayer] Player is ready!');
+                    onReady: function() {
                         self.playerReady = true;
                         self.player.setVolume(parseInt(self.volumeSlider.value));
-                        // If there was a pending video, play it now
                         if (self.pendingVideoId) {
                             var vid = self.pendingVideoId;
                             self.pendingVideoId = null;
@@ -372,42 +463,29 @@ class MusicPlayer {
                         }
                     },
                     onStateChange: function(event) {
-                        console.log('[MusicPlayer] State changed:', event.data);
                         if (event.data === YT.PlayerState.PLAYING) {
                             self.setPlaying(true);
                         } else if (event.data === YT.PlayerState.PAUSED) {
                             self.setPlaying(false);
                         } else if (event.data === YT.PlayerState.ENDED) {
-                            // Loop
                             if (self.currentVideoId) {
                                 self.player.seekTo(0);
                                 self.player.playVideo();
                             }
                         } else if (event.data === YT.PlayerState.BUFFERING) {
-                            self.nowPlayingText.textContent = '⏳ Buffering...';
+                            self.nowPlayingText.textContent = 'Buffering...';
                         }
                     },
                     onError: function(event) {
-                        console.warn('[MusicPlayer] Error:', event.data);
-                        var errorMessages = {
-                            2: 'ID video tidak valid',
-                            5: 'Video tidak bisa diputar di HTML5',
-                            100: 'Video tidak ditemukan atau private',
-                            101: 'Video tidak bisa di-embed',
-                            150: 'Video tidak bisa di-embed'
-                        };
-                        var msg = errorMessages[event.data] || 'Error code: ' + event.data;
-                        self.nowPlayingText.textContent = '❌ ' + msg;
+                        var msgs = { 2: 'ID video tidak valid', 5: 'Tidak bisa diputar', 100: 'Video tidak ditemukan', 101: 'Tidak bisa di-embed', 150: 'Tidak bisa di-embed' };
+                        self.nowPlayingText.textContent = (msgs[event.data] || 'Error: ' + event.data);
                         self.setPlaying(false);
-                        setTimeout(function() {
-                            self.nowPlayingText.textContent = self.currentStation || 'Pilih station atau paste link YouTube';
-                        }, 4000);
+                        setTimeout(function() { self.nowPlayingText.textContent = self.currentStation || 'Pilih station atau paste link YouTube'; }, 4000);
                     }
                 }
             });
         } catch (err) {
-            console.error('[MusicPlayer] Failed to create player:', err);
-            this.nowPlayingText.textContent = '⚠️ Gagal memuat YouTube Player';
+            this.nowPlayingText.textContent = 'Gagal memuat YouTube Player';
             this.playerCreated = false;
         }
     }
@@ -422,7 +500,7 @@ class MusicPlayer {
         if (btnEl) btnEl.classList.add('active');
         this.currentVideoId = videoId;
         this.currentStation = name;
-        this.nowPlayingText.textContent = '⏳ Loading: ' + name;
+        this.nowPlayingText.textContent = 'Loading: ' + name;
         this.loadAndPlay(videoId);
     }
 
@@ -434,14 +512,12 @@ class MusicPlayer {
             document.querySelectorAll('.station-btn').forEach(function(b) { b.classList.remove('active'); });
             this.currentVideoId = videoId;
             this.currentStation = 'Custom YouTube';
-            this.nowPlayingText.textContent = '⏳ Loading...';
+            this.nowPlayingText.textContent = 'Loading...';
             this.loadAndPlay(videoId);
         } else {
             var self = this;
-            this.nowPlayingText.textContent = '❌ URL tidak valid. Coba format: youtube.com/watch?v=xxx';
-            setTimeout(function() {
-                self.nowPlayingText.textContent = self.currentStation || 'Pilih station atau paste link YouTube';
-            }, 3000);
+            this.nowPlayingText.textContent = 'URL tidak valid';
+            setTimeout(function() { self.nowPlayingText.textContent = self.currentStation || 'Pilih station atau paste link YouTube'; }, 3000);
         }
     }
 
@@ -458,38 +534,25 @@ class MusicPlayer {
     }
 
     loadAndPlay(videoId) {
-        console.log('[MusicPlayer] loadAndPlay:', videoId, 'playerReady:', this.playerReady);
-
         if (!this.playerReady) {
-            // Store pending video and wait for player to be ready
             this.pendingVideoId = videoId;
-            this.nowPlayingText.textContent = '⏳ Menunggu player siap...';
-
-            // If player hasn't been created yet, try creating it
-            if (!this.playerCreated && ytPlayerReady) {
-                this.createPlayer();
-            }
+            this.nowPlayingText.textContent = 'Menunggu player siap...';
+            if (!this.playerCreated && ytPlayerReady) this.createPlayer();
             return;
         }
-
         try {
-            this.player.loadVideoById({
-                videoId: videoId,
-                suggestedQuality: 'small'
-            });
+            this.player.loadVideoById({ videoId: videoId, suggestedQuality: 'small' });
             this.player.setVolume(parseInt(this.volumeSlider.value));
         } catch (err) {
-            console.error('[MusicPlayer] loadVideoById error:', err);
-            this.nowPlayingText.textContent = '⚠️ Gagal memutar video';
+            this.nowPlayingText.textContent = 'Gagal memutar video';
         }
     }
 
     togglePlayPause() {
         if (!this.player || !this.playerReady) {
-            this.nowPlayingText.textContent = '⏳ Player belum siap...';
+            this.nowPlayingText.textContent = 'Player belum siap...';
             return;
         }
-
         if (this.isPlaying) {
             this.player.pauseVideo();
         } else if (this.currentVideoId) {
@@ -512,20 +575,16 @@ class MusicPlayer {
         this.pauseIcon.style.display = playing ? 'block' : 'none';
         this.toggle.classList.toggle('playing', playing);
         this.visualizer.classList.toggle('active', playing);
-
         if (playing) {
             this.startVisualizerAnimation();
-            // Update title from player
             if (this.player && this.playerReady) {
                 try {
                     var videoData = this.player.getVideoData();
                     if (videoData && videoData.title) {
-                        this.nowPlayingText.textContent = '🎵 ' + videoData.title;
-                        this.currentStation = '🎵 ' + videoData.title;
+                        this.nowPlayingText.textContent = videoData.title;
+                        this.currentStation = videoData.title;
                     }
-                } catch (e) {
-                    // ignore
-                }
+                } catch (e) { /* ignore */ }
             }
         } else {
             this.stopVisualizerAnimation();
@@ -543,10 +602,7 @@ class MusicPlayer {
     }
 
     stopVisualizerAnimation() {
-        if (this.vizInterval) {
-            clearInterval(this.vizInterval);
-            this.vizInterval = null;
-        }
+        if (this.vizInterval) { clearInterval(this.vizInterval); this.vizInterval = null; }
     }
 }
 
@@ -638,24 +694,19 @@ class Calculator {
                 if (key === 'v') { e.preventDefault(); self.pasteValue(); }
                 return;
             }
-            if (document.activeElement && document.activeElement.classList.contains('url-input')) {
-                return;
-            }
+            if (document.activeElement && document.activeElement.classList.contains('url-input')) return;
+            if (key === 'F11') return;
             e.preventDefault();
             self.keyboardHint.classList.add('show');
             clearTimeout(hintTimeout);
-            hintTimeout = setTimeout(function() {
-                self.keyboardHint.classList.remove('show');
-            }, 1500);
+            hintTimeout = setTimeout(function() { self.keyboardHint.classList.remove('show'); }, 1500);
             var keyMap = {
                 '0': '0', '1': '1', '2': '2', '3': '3', '4': '4',
                 '5': '5', '6': '6', '7': '7', '8': '8', '9': '9',
                 '.': 'decimal', ',': 'decimal',
                 '+': 'add', '-': 'subtract', '*': 'multiply', '/': 'divide',
-                '%': 'percent',
-                'Enter': 'equals', '=': 'equals',
-                'Backspace': 'backspace', 'Delete': 'clear',
-                'Escape': 'clear',
+                '%': 'percent', 'Enter': 'equals', '=': 'equals',
+                'Backspace': 'backspace', 'Delete': 'clear', 'Escape': 'clear',
                 '(': 'paren-open', ')': 'paren-close'
             };
             if (keyMap[key]) {
@@ -681,10 +732,7 @@ class Calculator {
         navigator.clipboard.writeText(value).then(function() {
             self.copyToast.classList.add('show');
             self.copyBtn.classList.add('copied');
-            setTimeout(function() {
-                self.copyToast.classList.remove('show');
-                self.copyBtn.classList.remove('copied');
-            }, 1500);
+            setTimeout(function() { self.copyToast.classList.remove('show'); self.copyBtn.classList.remove('copied'); }, 1500);
         }).catch(function() {
             var textarea = document.createElement('textarea');
             textarea.value = value;
@@ -696,10 +744,7 @@ class Calculator {
             document.body.removeChild(textarea);
             self.copyToast.classList.add('show');
             self.copyBtn.classList.add('copied');
-            setTimeout(function() {
-                self.copyToast.classList.remove('show');
-                self.copyBtn.classList.remove('copied');
-            }, 1500);
+            setTimeout(function() { self.copyToast.classList.remove('show'); self.copyBtn.classList.remove('copied'); }, 1500);
         });
     }
 
@@ -765,10 +810,7 @@ class Calculator {
     }
 
     handleAction(action) {
-        if (/^[0-9]$/.test(action)) {
-            this.inputNumber(action);
-            return;
-        }
+        if (/^[0-9]$/.test(action)) { this.inputNumber(action); return; }
         switch (action) {
             case 'decimal': this.inputDecimal(); break;
             case 'add': this.inputOperator('+'); break;
@@ -838,17 +880,13 @@ class Calculator {
 
     inputConstant(value) {
         this.currentInput = String(value);
-        if (this.waitingForOperand) {
-            this.waitingForOperand = false;
-        }
+        if (this.waitingForOperand) this.waitingForOperand = false;
         this.updateDisplay();
     }
 
     inputParen(paren) {
         if (paren === '(') {
-            if (!this.waitingForOperand && this.currentInput !== '0') {
-                this.inputOperator('\u00D7');
-            }
+            if (!this.waitingForOperand && this.currentInput !== '0') this.inputOperator('\u00D7');
             this.expression += ' (';
             this.parenthesesCount++;
             this.waitingForOperand = true;
@@ -875,24 +913,23 @@ class Calculator {
     calculate() {
         if (this.operator === null && this.lastResult === null) return;
         var current = parseFloat(this.currentInput);
-        var result;
-        var fullExpr;
+        var result, fullExpr;
         if (this.previousValue !== null) {
             result = this.compute(this.previousValue, current, this.operator);
             fullExpr = this.expression + ' ' + this.formatDisplay(current);
-        } else {
-            return;
-        }
-        this.resultEl.classList.add('glitch');
+        } else { return; }
+
         var resultEl = this.resultEl;
-        setTimeout(function() { resultEl.classList.remove('glitch'); }, 300);
-        this.calculatorEl.classList.add('screen-shake');
         var calcEl = this.calculatorEl;
+        resultEl.classList.add('glitch');
+        setTimeout(function() { resultEl.classList.remove('glitch'); }, 300);
+        calcEl.classList.add('screen-shake');
         setTimeout(function() { calcEl.classList.remove('screen-shake'); }, 400);
-        this.resultEl.classList.add('bounce');
+        resultEl.classList.add('bounce');
         setTimeout(function() { resultEl.classList.remove('bounce'); }, 400);
+
         if (!isNaN(result) && isFinite(result)) {
-            var rect = this.calculatorEl.getBoundingClientRect();
+            var rect = calcEl.getBoundingClientRect();
             this.confetti.burst(rect.left + rect.width / 2, rect.top + rect.height / 3);
             this.addHistory(fullExpr, result);
         }
@@ -908,48 +945,25 @@ class Calculator {
 
     scientificFunc(func) {
         var current = parseFloat(this.currentInput);
-        var result;
-        var expr;
+        var result, expr;
         switch (func) {
-            case 'sin':
-                result = Math.sin(current * Math.PI / 180);
-                expr = 'sin(' + this.formatDisplay(current) + '\u00B0)';
-                break;
-            case 'cos':
-                result = Math.cos(current * Math.PI / 180);
-                expr = 'cos(' + this.formatDisplay(current) + '\u00B0)';
-                break;
-            case 'tan':
-                result = Math.tan(current * Math.PI / 180);
-                expr = 'tan(' + this.formatDisplay(current) + '\u00B0)';
-                break;
-            case 'log':
-                result = Math.log10(current);
-                expr = 'log(' + this.formatDisplay(current) + ')';
-                break;
-            case 'ln':
-                result = Math.log(current);
-                expr = 'ln(' + this.formatDisplay(current) + ')';
-                break;
-            case 'sqrt':
-                result = Math.sqrt(current);
-                expr = '\u221A(' + this.formatDisplay(current) + ')';
-                break;
-            case 'abs':
-                result = Math.abs(current);
-                expr = '|' + this.formatDisplay(current) + '|';
-                break;
-            default:
-                return;
+            case 'sin': result = Math.sin(current * Math.PI / 180); expr = 'sin(' + this.formatDisplay(current) + '\u00B0)'; break;
+            case 'cos': result = Math.cos(current * Math.PI / 180); expr = 'cos(' + this.formatDisplay(current) + '\u00B0)'; break;
+            case 'tan': result = Math.tan(current * Math.PI / 180); expr = 'tan(' + this.formatDisplay(current) + '\u00B0)'; break;
+            case 'log': result = Math.log10(current); expr = 'log(' + this.formatDisplay(current) + ')'; break;
+            case 'ln': result = Math.log(current); expr = 'ln(' + this.formatDisplay(current) + ')'; break;
+            case 'sqrt': result = Math.sqrt(current); expr = '\u221A(' + this.formatDisplay(current) + ')'; break;
+            case 'abs': result = Math.abs(current); expr = '|' + this.formatDisplay(current) + '|'; break;
+            default: return;
         }
         this.addHistory(expr, result);
         this.expression = expr;
         this.currentInput = this.formatNumber(result);
         this.waitingForOperand = true;
-        this.resultEl.classList.add('glitch');
         var el = this.resultEl;
+        el.classList.add('glitch');
         setTimeout(function() { el.classList.remove('glitch'); }, 300);
-        this.resultEl.classList.add('bounce');
+        el.classList.add('bounce');
         setTimeout(function() { el.classList.remove('bounce'); }, 400);
         this.updateDisplay();
     }
@@ -962,49 +976,39 @@ class Calculator {
         this.expression = expr;
         this.currentInput = this.formatNumber(result);
         this.waitingForOperand = true;
-        this.resultEl.classList.add('bounce');
         var el = this.resultEl;
+        el.classList.add('bounce');
         setTimeout(function() { el.classList.remove('bounce'); }, 400);
         this.updateDisplay();
     }
 
     factorial() {
         var current = parseInt(this.currentInput);
-        if (current < 0 || current > 170) {
-            this.currentInput = 'Error';
-            this.updateDisplay();
-            return;
-        }
+        if (current < 0 || current > 170) { this.currentInput = 'Error'; this.updateDisplay(); return; }
         var result = 1;
-        for (var i = 2; i <= current; i++) {
-            result *= i;
-        }
+        for (var i = 2; i <= current; i++) result *= i;
         var expr = current + '!';
         this.addHistory(expr, result);
         this.expression = expr;
         this.currentInput = this.formatNumber(result);
         this.waitingForOperand = true;
-        this.resultEl.classList.add('bounce');
         var el = this.resultEl;
+        el.classList.add('bounce');
         setTimeout(function() { el.classList.remove('bounce'); }, 400);
         this.updateDisplay();
     }
 
     inverse() {
         var current = parseFloat(this.currentInput);
-        if (current === 0) {
-            this.currentInput = 'Error';
-            this.updateDisplay();
-            return;
-        }
+        if (current === 0) { this.currentInput = 'Error'; this.updateDisplay(); return; }
         var result = 1 / current;
         var expr = '1/' + this.formatDisplay(current);
         this.addHistory(expr, result);
         this.expression = expr;
         this.currentInput = this.formatNumber(result);
         this.waitingForOperand = true;
-        this.resultEl.classList.add('bounce');
         var el = this.resultEl;
+        el.classList.add('bounce');
         setTimeout(function() { el.classList.remove('bounce'); }, 400);
         this.updateDisplay();
     }
@@ -1012,8 +1016,7 @@ class Calculator {
     percent() {
         var current = parseFloat(this.currentInput);
         if (this.previousValue !== null) {
-            var result = (this.previousValue * current) / 100;
-            this.currentInput = this.formatNumber(result);
+            this.currentInput = this.formatNumber((this.previousValue * current) / 100);
         } else {
             this.currentInput = this.formatNumber(current / 100);
         }
@@ -1048,11 +1051,8 @@ class Calculator {
         this.expressionEl.textContent = this.expression;
         var len = displayValue.length;
         this.resultEl.classList.remove('shrink', 'shrink-more');
-        if (len > 12) {
-            this.resultEl.classList.add('shrink-more');
-        } else if (len > 9) {
-            this.resultEl.classList.add('shrink');
-        }
+        if (len > 12) this.resultEl.classList.add('shrink-more');
+        else if (len > 9) this.resultEl.classList.add('shrink');
     }
 
     formatNumber(num) {
@@ -1095,11 +1095,7 @@ class Calculator {
     }
 
     addHistory(expression, result) {
-        var item = {
-            expression: expression,
-            result: this.formatNumber(result),
-            timestamp: Date.now()
-        };
+        var item = { expression: expression, result: this.formatNumber(result), timestamp: Date.now() };
         this.history.unshift(item);
         if (this.history.length > 50) this.history.pop();
         this.saveHistory();
@@ -1143,13 +1139,8 @@ class Calculator {
     loadHistory() {
         try {
             var saved = localStorage.getItem('SobingGanteng-history');
-            if (saved) {
-                this.history = JSON.parse(saved);
-                this.renderHistory();
-            }
-        } catch (e) {
-            this.history = [];
-        }
+            if (saved) { this.history = JSON.parse(saved); this.renderHistory(); }
+        } catch (e) { this.history = []; }
     }
 
     escapeHtml(str) {
@@ -1161,17 +1152,19 @@ class Calculator {
 
 // ===== Initialize =====
 document.addEventListener('DOMContentLoaded', function() {
+    // Parallax Background
+    new ParallaxBackground();
+
+    // Lightning Effect
+    new LightningEffect();
+
     // Rain Effect
     var rainCanvas = document.getElementById('rainCanvas');
-    if (rainCanvas) {
-        new RainEffect(rainCanvas);
-    }
+    if (rainCanvas) new RainEffect(rainCanvas);
 
     // Particle System
     var particleCanvas = document.getElementById('particleCanvas');
-    if (particleCanvas) {
-        new ParticleSystem(particleCanvas);
-    }
+    if (particleCanvas) new ParticleSystem(particleCanvas);
 
     // Confetti
     var confettiCanvas = document.getElementById('confettiCanvas');
