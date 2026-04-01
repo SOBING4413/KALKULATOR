@@ -21,12 +21,10 @@ class InfoWidget {
         this.lon = null;
         this.init();
     }
-
     init() {
         this.startClock();
         this.getLocation();
     }
-
     startClock() {
         var self = this;
         function update() {
@@ -38,7 +36,6 @@ class InfoWidget {
         update();
         setInterval(update, 1000);
     }
-
     getTimezoneName() {
         try {
             var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -52,7 +49,6 @@ class InfoWidget {
             return 'UTC' + sign + hours;
         } catch (e) { return 'UTC'; }
     }
-
     getLocation() {
         var self = this;
         if ('geolocation' in navigator) {
@@ -75,7 +71,6 @@ class InfoWidget {
             self.fetchWeatherByIP();
         }
     }
-
     reverseGeocode(lat, lon) {
         var self = this;
         fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lon + '&zoom=10&accept-language=id')
@@ -88,7 +83,6 @@ class InfoWidget {
             })
             .catch(function() { self.locationText.textContent = 'Lat: ' + lat.toFixed(2) + ', Lon: ' + lon.toFixed(2); });
     }
-
     fetchWeather(lat, lon) {
         var self = this;
         fetch('https://wttr.in/' + lat + ',' + lon + '?format=j1')
@@ -112,7 +106,6 @@ class InfoWidget {
             })
             .catch(function() { self.weatherTemp.textContent = '--\u00B0C'; self.weatherDesc.textContent = 'Gagal memuat'; });
     }
-
     fetchWeatherByIP() {
         var self = this;
         fetch('https://ipapi.co/json/')
@@ -129,7 +122,6 @@ class InfoWidget {
             })
             .catch(function() { self.weatherTemp.textContent = '--\u00B0C'; self.weatherDesc.textContent = 'Tidak tersedia'; });
     }
-
     getWeatherEmoji(code, temp) {
         if (code === 113) return '\u2600\uFE0F';
         if (code === 116) return '\u26C5';
@@ -307,6 +299,289 @@ class ConfettiSystem {
     }
 }
 
+// ===== Unit Converter =====
+class UnitConverter {
+    constructor() {
+        this.panel = document.getElementById('converterPanel');
+        this.fromInput = document.getElementById('convFrom');
+        this.toInput = document.getElementById('convTo');
+        this.fromUnit = document.getElementById('convFromUnit');
+        this.toUnit = document.getElementById('convToUnit');
+        this.swapBtn = document.getElementById('convSwap');
+        this.currentType = 'length';
+        this.units = {
+            length: [
+                { value: 'mm', label: 'mm' },
+                { value: 'cm', label: 'cm' },
+                { value: 'm', label: 'm' },
+                { value: 'km', label: 'km' },
+                { value: 'in', label: 'inch' },
+                { value: 'ft', label: 'feet' },
+                { value: 'mi', label: 'mile' }
+            ],
+            weight: [
+                { value: 'mg', label: 'mg' },
+                { value: 'g', label: 'gram' },
+                { value: 'kg', label: 'kg' },
+                { value: 'ton', label: 'ton' },
+                { value: 'oz', label: 'ounce' },
+                { value: 'lb', label: 'pound' }
+            ],
+            temp: [
+                { value: 'c', label: '\u00B0C' },
+                { value: 'f', label: '\u00B0F' },
+                { value: 'k', label: 'K' }
+            ]
+        };
+        this.init();
+    }
+    init() {
+        var self = this;
+        document.querySelectorAll('.conv-tab').forEach(function(tab) {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.conv-tab').forEach(function(t) { t.classList.remove('active'); });
+                tab.classList.add('active');
+                self.currentType = tab.dataset.conv;
+                self.populateUnits();
+                self.convert();
+            });
+        });
+        this.fromInput.addEventListener('input', function() { self.convert(); });
+        this.fromUnit.addEventListener('change', function() { self.convert(); });
+        this.toUnit.addEventListener('change', function() { self.convert(); });
+        this.swapBtn.addEventListener('click', function() { self.swap(); });
+        this.fromInput.addEventListener('keydown', function(e) { e.stopPropagation(); });
+        this.fromInput.addEventListener('keyup', function(e) { e.stopPropagation(); });
+        this.fromInput.addEventListener('keypress', function(e) { e.stopPropagation(); });
+        this.populateUnits();
+    }
+    populateUnits() {
+        var units = this.units[this.currentType];
+        this.fromUnit.innerHTML = '';
+        this.toUnit.innerHTML = '';
+        for (var i = 0; i < units.length; i++) {
+            var o1 = document.createElement('option');
+            o1.value = units[i].value; o1.textContent = units[i].label;
+            this.fromUnit.appendChild(o1);
+            var o2 = document.createElement('option');
+            o2.value = units[i].value; o2.textContent = units[i].label;
+            this.toUnit.appendChild(o2);
+        }
+        if (units.length > 1) this.toUnit.selectedIndex = 1;
+        this.fromInput.value = '';
+        this.toInput.value = '';
+    }
+    swap() {
+        var tmpIdx = this.fromUnit.selectedIndex;
+        this.fromUnit.selectedIndex = this.toUnit.selectedIndex;
+        this.toUnit.selectedIndex = tmpIdx;
+        this.convert();
+    }
+    convert() {
+        var val = parseFloat(this.fromInput.value);
+        if (isNaN(val)) { this.toInput.value = ''; return; }
+        var from = this.fromUnit.value;
+        var to = this.toUnit.value;
+        var result;
+        if (this.currentType === 'temp') {
+            result = this.convertTemp(val, from, to);
+        } else {
+            var baseVal = this.toBase(val, from, this.currentType);
+            result = this.fromBase(baseVal, to, this.currentType);
+        }
+        this.toInput.value = isNaN(result) ? 'Error' : parseFloat(result.toPrecision(10));
+    }
+    convertTemp(val, from, to) {
+        var celsius;
+        if (from === 'c') celsius = val;
+        else if (from === 'f') celsius = (val - 32) * 5 / 9;
+        else celsius = val - 273.15;
+        if (to === 'c') return celsius;
+        if (to === 'f') return celsius * 9 / 5 + 32;
+        return celsius + 273.15;
+    }
+    toBase(val, unit, type) {
+        var factors = {
+            length: { mm: 0.001, cm: 0.01, m: 1, km: 1000, in: 0.0254, ft: 0.3048, mi: 1609.344 },
+            weight: { mg: 0.001, g: 1, kg: 1000, ton: 1000000, oz: 28.3495, lb: 453.592 }
+        };
+        return val * (factors[type][unit] || 1);
+    }
+    fromBase(val, unit, type) {
+        var factors = {
+            length: { mm: 0.001, cm: 0.01, m: 1, km: 1000, in: 0.0254, ft: 0.3048, mi: 1609.344 },
+            weight: { mg: 0.001, g: 1, kg: 1000, ton: 1000000, oz: 28.3495, lb: 453.592 }
+        };
+        return val / (factors[type][unit] || 1);
+    }
+}
+
+// ===== Stopwatch =====
+class Stopwatch {
+    constructor() {
+        this.display = document.getElementById('stopwatchDisplay');
+        this.startBtn = document.getElementById('swStart');
+        this.stopBtn = document.getElementById('swStop');
+        this.lapBtn = document.getElementById('swLap');
+        this.resetBtn = document.getElementById('swReset');
+        this.lapsContainer = document.getElementById('swLaps');
+        this.panel = document.getElementById('stopwatchPanel');
+        this.running = false;
+        this.startTime = 0;
+        this.elapsed = 0;
+        this.interval = null;
+        this.laps = [];
+        this.lastLapTime = 0;
+        this.init();
+    }
+    init() {
+        var self = this;
+        this.startBtn.addEventListener('click', function() { self.start(); });
+        this.stopBtn.addEventListener('click', function() { self.pause(); });
+        this.lapBtn.addEventListener('click', function() { self.lap(); });
+        this.resetBtn.addEventListener('click', function() { self.reset(); });
+    }
+    start() {
+        this.running = true;
+        this.startTime = Date.now() - this.elapsed;
+        this.startBtn.style.display = 'none';
+        this.stopBtn.style.display = 'flex';
+        this.lapBtn.disabled = false;
+        this.resetBtn.disabled = false;
+        var self = this;
+        this.interval = setInterval(function() { self.update(); }, 10);
+    }
+    pause() {
+        this.running = false;
+        this.elapsed = Date.now() - this.startTime;
+        clearInterval(this.interval);
+        this.startBtn.style.display = 'flex';
+        this.stopBtn.style.display = 'none';
+    }
+    reset() {
+        this.running = false;
+        clearInterval(this.interval);
+        this.elapsed = 0;
+        this.laps = [];
+        this.lastLapTime = 0;
+        this.display.textContent = '00:00.00';
+        this.lapsContainer.innerHTML = '';
+        this.startBtn.style.display = 'flex';
+        this.stopBtn.style.display = 'none';
+        this.lapBtn.disabled = true;
+        this.resetBtn.disabled = true;
+    }
+    lap() {
+        var currentTime = Date.now() - this.startTime;
+        var lapTime = currentTime - this.lastLapTime;
+        this.lastLapTime = currentTime;
+        this.laps.unshift(lapTime);
+        this.renderLaps();
+    }
+    update() {
+        this.elapsed = Date.now() - this.startTime;
+        this.display.textContent = this.formatTime(this.elapsed);
+    }
+    formatTime(ms) {
+        var totalSeconds = Math.floor(ms / 1000);
+        var minutes = Math.floor(totalSeconds / 60);
+        var seconds = totalSeconds % 60;
+        var centiseconds = Math.floor((ms % 1000) / 10);
+        return String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0') + '.' + String(centiseconds).padStart(2, '0');
+    }
+    renderLaps() {
+        var html = '';
+        for (var i = 0; i < this.laps.length; i++) {
+            html += '<div class="lap-item"><span class="lap-num">Lap ' + (this.laps.length - i) + '</span><span class="lap-time">' + this.formatTime(this.laps[i]) + '</span></div>';
+        }
+        this.lapsContainer.innerHTML = html;
+    }
+}
+
+// ===== Quick Notes =====
+class QuickNotes {
+    constructor() {
+        this.panel = document.getElementById('notesPanel');
+        this.addBtn = document.getElementById('notesAddBtn');
+        this.inputArea = document.getElementById('notesInputArea');
+        this.textarea = document.getElementById('notesTextarea');
+        this.saveBtn = document.getElementById('notesSaveBtn');
+        this.cancelBtn = document.getElementById('notesCancelBtn');
+        this.listEl = document.getElementById('notesList');
+        this.notes = [];
+        this.init();
+    }
+    init() {
+        var self = this;
+        this.loadNotes();
+        this.addBtn.addEventListener('click', function() {
+            self.inputArea.style.display = self.inputArea.style.display === 'none' ? 'block' : 'none';
+            if (self.inputArea.style.display === 'block') self.textarea.focus();
+        });
+        this.saveBtn.addEventListener('click', function() { self.saveNote(); });
+        this.cancelBtn.addEventListener('click', function() {
+            self.textarea.value = '';
+            self.inputArea.style.display = 'none';
+        });
+        this.textarea.addEventListener('keydown', function(e) {
+            e.stopPropagation();
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { self.saveNote(); }
+        });
+        this.textarea.addEventListener('keyup', function(e) { e.stopPropagation(); });
+        this.textarea.addEventListener('keypress', function(e) { e.stopPropagation(); });
+        this.renderNotes();
+    }
+    saveNote() {
+        var text = this.textarea.value.trim();
+        if (!text) return;
+        this.notes.unshift({ text: text, time: Date.now() });
+        if (this.notes.length > 50) this.notes.pop();
+        this.persistNotes();
+        this.renderNotes();
+        this.textarea.value = '';
+        this.inputArea.style.display = 'none';
+    }
+    deleteNote(index) {
+        this.notes.splice(index, 1);
+        this.persistNotes();
+        this.renderNotes();
+    }
+    renderNotes() {
+        var self = this;
+        if (this.notes.length === 0) {
+            this.listEl.innerHTML = '<div class="notes-empty">Belum ada catatan</div>';
+            return;
+        }
+        var html = '';
+        for (var i = 0; i < this.notes.length; i++) {
+            var note = this.notes[i];
+            var timeStr = new Date(note.time).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            html += '<div class="note-item" data-index="' + i + '">';
+            html += '<div class="note-text">' + this.escapeHtml(note.text) + '</div>';
+            html += '<div class="note-time">' + timeStr + '</div>';
+            html += '<button class="note-delete" data-idx="' + i + '" title="Hapus">&times;</button>';
+            html += '</div>';
+        }
+        this.listEl.innerHTML = html;
+        this.listEl.querySelectorAll('.note-delete').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                self.deleteNote(parseInt(btn.dataset.idx));
+            });
+        });
+    }
+    persistNotes() {
+        try { localStorage.setItem('SobingGanteng-notes', JSON.stringify(this.notes)); } catch (e) { /* ignore */ }
+    }
+    loadNotes() {
+        try {
+            var saved = localStorage.getItem('SobingGanteng-notes');
+            if (saved) this.notes = JSON.parse(saved);
+        } catch (e) { this.notes = []; }
+    }
+    escapeHtml(str) { var div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
+}
+
 // ===== Music Player =====
 var ytPlayerReady = false;
 var onYouTubeIframeAPIReadyCallback = null;
@@ -403,14 +678,64 @@ class Calculator {
         this.confetti = confetti; this.currentInput = '0'; this.expression = ''; this.lastResult = null;
         this.operator = null; this.previousValue = null; this.waitingForOperand = false;
         this.history = []; this.scientificOpen = false; this.historyOpen = false; this.parenthesesCount = 0;
+        this.converterOpen = false; this.stopwatchOpen = false; this.notesOpen = false;
         this.resultEl = document.getElementById('result'); this.expressionEl = document.getElementById('expression');
         this.scientificPanel = document.getElementById('scientificPanel'); this.historyPanel = document.getElementById('historyPanel');
         this.historyList = document.getElementById('historyList'); this.keyboardHint = document.getElementById('keyboardHint');
         this.copyBtn = document.getElementById('copyBtn'); this.copyToast = document.getElementById('copyToast');
         this.calculatorEl = document.getElementById('calculator');
+        this.converterPanel = document.getElementById('converterPanel');
+        this.stopwatchPanel = document.getElementById('stopwatchPanel');
+        this.notesPanel = document.getElementById('notesPanel');
         this.init();
     }
-    init() { this.bindButtons(); this.bindKeyboard(); this.bindThemeSwitcher(); this.bindHistoryToggle(); this.bindScientificToggle(); this.bindCopyPaste(); this.loadHistory(); this.loadTheme(); }
+    init() { this.bindButtons(); this.bindKeyboard(); this.bindThemeSwitcher(); this.bindHistoryToggle(); this.bindScientificToggle(); this.bindCopyPaste(); this.bindNewToggles(); this.loadHistory(); this.loadTheme(); }
+    bindNewToggles() {
+        var self = this;
+        var convToggle = document.getElementById('converterToggle');
+        var swToggle = document.getElementById('stopwatchToggle');
+        var notesToggle = document.getElementById('notesToggle');
+        convToggle.addEventListener('click', function() {
+            self.converterOpen = !self.converterOpen;
+            self.converterPanel.classList.toggle('open', self.converterOpen);
+            convToggle.classList.toggle('active', self.converterOpen);
+            if (self.converterOpen) { self.closeOtherPanels('converter'); }
+        });
+        swToggle.addEventListener('click', function() {
+            self.stopwatchOpen = !self.stopwatchOpen;
+            self.stopwatchPanel.classList.toggle('open', self.stopwatchOpen);
+            swToggle.classList.toggle('active', self.stopwatchOpen);
+            if (self.stopwatchOpen) { self.closeOtherPanels('stopwatch'); }
+        });
+        notesToggle.addEventListener('click', function() {
+            self.notesOpen = !self.notesOpen;
+            self.notesPanel.classList.toggle('open', self.notesOpen);
+            notesToggle.classList.toggle('active', self.notesOpen);
+            if (self.notesOpen) { self.closeOtherPanels('notes'); }
+        });
+    }
+    closeOtherPanels(except) {
+        if (except !== 'converter' && this.converterOpen) {
+            this.converterOpen = false;
+            this.converterPanel.classList.remove('open');
+            document.getElementById('converterToggle').classList.remove('active');
+        }
+        if (except !== 'stopwatch' && this.stopwatchOpen) {
+            this.stopwatchOpen = false;
+            this.stopwatchPanel.classList.remove('open');
+            document.getElementById('stopwatchToggle').classList.remove('active');
+        }
+        if (except !== 'notes' && this.notesOpen) {
+            this.notesOpen = false;
+            this.notesPanel.classList.remove('open');
+            document.getElementById('notesToggle').classList.remove('active');
+        }
+        if (except !== 'scientific' && this.scientificOpen) {
+            this.scientificOpen = false;
+            this.scientificPanel.classList.remove('open');
+            document.getElementById('sciToggle').classList.remove('active');
+        }
+    }
     bindButtons() {
         var self = this;
         document.querySelectorAll('.btn').forEach(function(btn) {
@@ -429,7 +754,7 @@ class Calculator {
         document.addEventListener('keydown', function(e) {
             var key = e.key;
             if ((e.ctrlKey || e.metaKey) && (key === 'c' || key === 'v')) { if (key === 'c') { e.preventDefault(); self.copyResult(); } if (key === 'v') { e.preventDefault(); self.pasteValue(); } return; }
-            if (document.activeElement && document.activeElement.classList.contains('url-input')) return;
+            if (document.activeElement && (document.activeElement.classList.contains('url-input') || document.activeElement.classList.contains('conv-input') || document.activeElement.classList.contains('notes-textarea'))) return;
             if (key === 'F11') return;
             e.preventDefault();
             self.keyboardHint.classList.add('show'); clearTimeout(hintTimeout); hintTimeout = setTimeout(function() { self.keyboardHint.classList.remove('show'); }, 1500);
@@ -455,7 +780,15 @@ class Calculator {
         });
     }
     loadTheme() { var saved = localStorage.getItem('SobingGanteng-theme'); if (saved) { document.documentElement.setAttribute('data-theme', saved); document.querySelectorAll('.theme-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.theme === saved); }); } }
-    bindScientificToggle() { var self = this; var toggle = document.getElementById('sciToggle'); toggle.addEventListener('click', function() { self.scientificOpen = !self.scientificOpen; self.scientificPanel.classList.toggle('open', self.scientificOpen); toggle.classList.toggle('active', self.scientificOpen); }); }
+    bindScientificToggle() {
+        var self = this; var toggle = document.getElementById('sciToggle');
+        toggle.addEventListener('click', function() {
+            self.scientificOpen = !self.scientificOpen;
+            self.scientificPanel.classList.toggle('open', self.scientificOpen);
+            toggle.classList.toggle('active', self.scientificOpen);
+            if (self.scientificOpen) { self.closeOtherPanels('scientific'); }
+        });
+    }
     bindHistoryToggle() {
         var self = this; var toggle = document.getElementById('historyToggle');
         toggle.addEventListener('click', function() { self.historyOpen = !self.historyOpen; self.historyPanel.classList.toggle('open', self.historyOpen); toggle.classList.toggle('active', self.historyOpen); });
@@ -568,10 +901,7 @@ class Calculator {
 
 // ===== Initialize =====
 document.addEventListener('DOMContentLoaded', function() {
-    // Info Widget - always runs (lightweight)
     new InfoWidget();
-
-    // Heavy effects - desktop only
     new ParallaxBackground();
     new LightningEffect();
 
@@ -586,4 +916,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     new Calculator(confetti);
     new MusicPlayer();
+    new UnitConverter();
+    new Stopwatch();
+    new QuickNotes();
 });
