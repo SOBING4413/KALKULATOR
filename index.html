@@ -42,7 +42,7 @@
             <span class=theme-dot" style="background: linear-gradient(135deg, #4ade80, #22d3ee);"></span>
         </button>
         <button class="theme-btn" data-theme="forest" title="🌲 Hutan Berkabut">
-            <span class="theme-dot" style="background: linear-gradient135deg, #6a3d4a, #a3e635);"></span>
+            <span class="theme-dot" style="background: linear-gradient(35deg, #6a3d4a, #a3e635);"></span>
         </button>
         <button class="theme-btn" data-theme="mountain" title="🏔️ Gunung & Danau">
             <span class="theme-dot" style="background: linear-gradient(15deg, #ea5e9f, #8b5cf6);"></span>
@@ -85,11 +85,6 @@
                     </div>
                 </div>
             </div>
-            <!-- Live indicator -->
-            <div class="live-indicator">
-                <span class="live-dot"></span>
-                <span>LIVE</span>
-            </div>
         </div>
 
         <!-- Calculator -->
@@ -115,6 +110,31 @@
                     <span class="gradient-text">Hallo Bubub</span>
                 </div>
                 <div class="calc-actions">
+                    <button class="action-btn" id="converterToggle" title="Konversi Satuan">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="17 1 21 5 17 9"/>
+                            <path d="M3 11V9a4 4 0 014-4h14"/>
+                            <polyline points="7 23 3 19 7 15"/>
+                            <path d="M21 13v2a4 4 0 01-4 4H3"/>
+                        </svg>
+                    </button>
+                    <button class="action-btn" id="stopwatchToggle" title="Stopwatch">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="13" r="8"/>
+                            <path d="M12 9v4l2 2"/>
+                            <path d="M5 3L2 6"/>
+                            <path d="M22 6l-3-3"/>
+                            <path d="M12 2v2"/>
+                        </svg>
+                    </button>
+                    <button class="action-btn" id="notesToggle" title="Catatan Cepat">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                        </svg>
+                    </button>
                     <button class="action-btn" id="sciToggle" title="Mode Ilmiah">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M4.5 12a7.5 7.5 0 0015 0m-15 0a7.5 7.5 0 0115 0m-15 0H3m16.5 0H21m-9-9v.01M12 21v-.01M7.5 4.2l.01.01M16.5 19.8l.01.01M4.2 7.5l.01.01M19.8 16.5l.01.01M4.2 16.5l.01.01M19.8 7.5l.01.01"/>
@@ -144,10 +164,82 @@
                 <div class="copy-toast" id="copyToast">Disalin! ✓</div>
             </div>
 
+            <!-- Unit Converter Panel -->
+            <div class="converter-panel" id="converterPanel">
+                <div class="converter-tabs">
+                    <button class="conv-tab active" data-conv="length">📏 Panjang</button>
+                    <button class="conv-tab" data-conv="weight">⚖️ Berat</button>
+                    <button class="conv-tab" data-conv="temp">🌡️ Suhu</button>
+                </div>
+                <div class="converter-body">
+                    <div class="conv-row">
+                        <input type="number" class="conv-input" id="convFrom" placeholder="Masukkan nilai..." step="any">
+                        <select class="conv-select" id="convFromUnit"></select>
+                    </div>
+                    <div class=conv-swap-row">
+                        <button class="conv-swap-btn" id="convSwap" title="Tukar">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="7 16 3 12 7 8"/>
+                                <polyline points="17 8 21 12 17 16"/>
+                                <line x1="3" y1="12" x2="21" y2="12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="conv-row">
+                        <input type="text" class="conv-input cnv-result-input" id="convTo" readonly placeholder="Hasil...">
+                        <select class="conv-select" id="convToUnit"></select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stopwatch Panel -->
+            <div class="stopwatch-panel" id="stopwatchPanel">
+                <div class="stopwatch-display" id="stopwatchDisplay">00:00.00</div>
+                <div class="stopwatch-controls">
+                    <button class="sw-btn sw-start" id="swStart">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        <span>Mulai</span>
+                    </button>
+                    <button class="sw-btn sw-stop" id="swStop" style="display:none;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                        <span>Pause</span>
+                    </button>
+                    <button class="sw-btn sw-lap" id="swLap" disabled>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>
+                        <span>Lap</span>
+                    </button>
+                    <button class="sw-btn sw-reset" id="swReset" disabled>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+                        <span>Reset</span>
+                    </button>
+                </div>
+                <div class="stopwatch-laps" id="swLaps"></div>
+            </div>
+
+            <!-- Notes Panel -->
+            <div class="notes-panel" id="notesPanel">
+                <div class="notes-header-row">
+                    <span class="notes-title">📝 Catatan Cepat</span>
+                    <button class="notes-add-btn" id="notesAddBtn" title="Tambah Catatan">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </button>
+                </div>
+                <div class="notes-input-area" id="notesInputArea" style="display:none;">
+                    <textarea class="notes-textarea" id="notesTextarea" placeholder="Tulis catatan..." rows="3"></textarea>
+                    <div class="notes-input-actions">
+                        <button class="notes-save-btn" id="notesSaveBtn">Simpan</button>
+                        <button class="notes-cancel-btn" id="notesCancelBtn">Batal</button>
+                    </div>
+                </div>
+                <div class="notes-list" id="notesList">
+                    <div class="notes-empty">Belum ada catatan</div>
+                </div>
+            </div>
+
             <!-- Scientific Panel -->
             <div class="scientific-panel" id="scientificPanel">
                 <div class="sci-grid">
-                    <button class="btn btn-sci" data-action="sin">sin</button>
+                    <button class="bn btn-sci" data-action="sin">sin</button>
                     <button class="btn btn-sci" data-action="cos">cos</button>
                     <button class="btn btn-sci" data-action="tan">tan</button>
                     <button class="btn btn-sci" data-action="log">log</button>
@@ -234,12 +326,12 @@
     <div class="music-player" id="musicPlayer">
         <button class="music-toggle" id="musicToggle" title="Music Player">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <pat d="M9 18V5l12-2v13"/>
+                <path d="M9 18V5l12-2v13"/>
                 <circle cx="6" cy="18" r="3"/>
                 <circle cx="18" cy="16" r="3"/>
             </svg>
             <div class="mini-visualizer" id="miniVisualizer">
-              <span></span><span></span><span></span><span></span>
+             <span></span><span></span><span></span><span></span>
             </div>
         </button>
 
@@ -316,7 +408,7 @@
 
             <!-- Controls -->
             <div class="music-controls">
-                <button class="ctrl-btn" id=musicPlayPause" title="Play/Pause">
+                <button class="ctrl-btn" id="musicPlayPause" title="Play/Pause">
                     <svg id="playIcon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                         <polygon points="5 3 19 12 5 21 5 3"/>
                     </svg>
@@ -327,8 +419,8 @@
                 </button>
                 <div class="volume-control">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polygon points="11 5 6 9 2 9 2 15 6 1511 19 11 5"/>
-                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                        <polygon points="115 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                        <path d="M9.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
                     </svg>
                     <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="70">
                 </div>
