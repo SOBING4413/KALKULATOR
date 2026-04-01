@@ -7,6 +7,12 @@ var isMobile = (function() {
     return check;
 })();
 
+// ===== Performance: Reduce paint on mobile =====
+if (isMobile) {
+    // Force GPU compositing for smoother scrolling
+    document.documentElement.style.willChange = 'auto';
+}
+
 // ===== Info Widget =====
 class InfoWidget {
     constructor() {
@@ -582,7 +588,184 @@ class QuickNotes {
     escapeHtml(str) { var div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
 }
 
-// ===== Music Player (FIXED) =====
+// ===== Beat-Reactive Visualizer Engine =====
+class BeatVisualizer {
+    constructor(vizBars, miniVizBars) {
+        this.vizBars = vizBars;
+        this.miniVizBars = miniVizBars;
+        this.barCount = vizBars.length;
+        this.heights = new Float32Array(this.barCount);
+        this.targets = new Float32Array(this.barCount);
+        this.velocities = new Float32Array(this.barCount);
+        this.peaks = new Float32Array(this.barCount);
+        this.animId = null;
+        this.running = false;
+        this.lastTime = 0;
+        this.beatEnergy = 0;
+        this.prevEnergy = 0;
+        this.beatDecay = 0;
+        this.bassHit = 0;
+        this.time = 0;
+        // Beat detection history
+        this.energyHistory = [];
+        this.historySize = 30;
+        this.isBeat = false;
+        this.beatCooldown = 0;
+        // Frequency simulation bands
+        this.bands = [];
+        for (var i = 0; i < this.barCount; i++) {
+            this.bands.push({
+                freq: 0.5 + (i / this.barCount) * 3.5,
+                phase: Math.random() * Math.PI * 2,
+                amp: 0.3 + Math.random() * 0.4
+            });
+        }
+    }
+
+    start() {
+        if (this.running) return;
+        this.running = true;
+        this.lastTime = performance.now();
+        this.animate();
+    }
+
+    stop() {
+        this.running = false;
+        if (this.animId) {
+            cancelAnimationFrame(this.animId);
+            this.animId = null;
+        }
+        // Reset bars to minimum
+        for (var i = 0; i < this.barCount; i++) {
+            this.heights[i] = 0;
+            this.vizBars[i].style.height = '3px';
+        }
+        if (this.miniVizBars) {
+            for (var j = 0; j < this.miniVizBars.length; j++) {
+                this.miniVizBars[j].style.height = '3px';
+            }
+        }
+    }
+
+    // Simulate beat detection using time-based energy patterns
+    simulateBeat(dt) {
+        this.time += dt;
+        // Simulate a BPM between 80-140 (common music range)
+        // Use multiple overlapping sine waves to create organic rhythm
+        var bpm1 = 120; // main beat
+        var bpm2 = 60;  // half-time feel
+        var bpm3 = 240; // hi-hat feel
+
+        var beat1 = Math.pow(Math.max(0, Math.sin(this.time * bpm1 * Math.PI / 30)), 4);
+        var beat2 = Math.pow(Math.max(0, Math.sin(this.time * bpm2 * Math.PI / 30)), 8) * 0.6;
+        var beat3 = Math.pow(Math.max(0, Math.sin(this.time * bpm3 * Math.PI / 30)), 2) * 0.3;
+
+        // Add some randomness for organic feel
+        var noise = (Math.sin(this.time * 7.3) * 0.5 + 0.5) * 0.15;
+        var energy = beat1 + beat2 + beat3 + noise;
+
+        // Track energy for beat detection
+        this.energyHistory.push(energy);
+        if (this.energyHistory.length > this.historySize) this.energyHistory.shift();
+
+        // Calculate average energy
+        var avgEnergy = 0;
+        for (var i = 0; i < this.energyHistory.length; i++) avgEnergy += this.energyHistory[i];
+        avgEnergy /= this.energyHistory.length;
+
+        // Detect beat: current energy significantly above average
+        this.isBeat = false;
+        if (this.beatCooldown <= 0 && energy > avgEnergy * 1.4 && energy > 0.5) {
+            this.isBeat = true;
+            this.beatCooldown = 0.12; // minimum time between beats
+            this.bassHit = 1.0;
+        }
+        this.beatCooldown = Math.max(0, this.beatCooldown - dt);
+
+        return energy;
+    }
+
+    animate() {
+        if (!this.running) return;
+        var self = this;
+        this.animId = requestAnimationFrame(function() { self.animate(); });
+
+        var now = performance.now();
+        var dt = Math.min((now - this.lastTime) / 1000, 0.05);
+        this.lastTime = now;
+
+        var energy = this.simulateBeat(dt);
+
+        // Decay bass hit
+        this.bassHit *= Math.pow(0.05, dt);
+
+        // Update each bar with frequency-band simulation
+        var maxHeight = 55; // max bar height in px
+        var minHeight = 3;
+
+        for (var i = 0; i < this.barCount; i++) {
+            var band = this.bands[i];
+            var normalizedPos = i / (this.barCount - 1); // 0 to 1
+
+            // Bass bars (left side) react more to beats
+            // Treble bars (right side) react more to hi-hats
+            var bassInfluence = Math.pow(1 - normalizedPos, 2);
+            var trebleInfluence = Math.pow(normalizedPos, 1.5);
+            // Mid bars get a mix
+            var midInfluence = Math.sin(normalizedPos * Math.PI);
+
+            // Create a wave pattern across bars
+            var wave = Math.sin(this.time * band.freq * 2 + band.phase + i * 0.3);
+            wave = (wave + 1) * 0.5; // normalize to 0-1
+
+            // Combine influences
+            var barEnergy = energy * 0.4 +
+                wave * band.amp * 0.3 +
+                this.bassHit * bassInfluence * 0.8 +
+                (Math.sin(this.time * 4 + i * 0.5) * 0.5 + 0.5) * trebleInfluence * energy * 0.3 +
+                midInfluence * energy * 0.2;
+
+            // Add beat punch for bass bars
+            if (this.isBeat) {
+                barEnergy += bassInfluence * 0.6;
+                barEnergy += midInfluence * 0.3;
+            }
+
+            // Clamp
+            barEnergy = Math.min(1, Math.max(0, barEnergy));
+
+            // Set target
+            this.targets[i] = barEnergy;
+
+            // Spring physics for smooth but punchy movement
+            var springForce = (this.targets[i] - this.heights[i]) * 25;
+            var damping = -this.velocities[i] * 6;
+            this.velocities[i] += (springForce + damping) * dt;
+            this.heights[i] += this.velocities[i] * dt;
+            this.heights[i] = Math.max(0, Math.min(1, this.heights[i]));
+
+            // Apply gravity (bars fall faster than they rise)
+            if (this.heights[i] > this.targets[i]) {
+                this.heights[i] -= dt * 2.5;
+            }
+
+            var px = minHeight + this.heights[i] * maxHeight;
+            this.vizBars[i].style.height = px + 'px';
+        }
+
+        // Update mini visualizer bars (4 bars summary)
+        if (this.miniVizBars && this.miniVizBars.length > 0) {
+            var step = Math.floor(this.barCount / this.miniVizBars.length);
+            for (var m = 0; m < this.miniVizBars.length; m++) {
+                var idx = Math.min(m * step + Math.floor(step / 2), this.barCount - 1);
+                var mh = 3 + this.heights[idx] * 8;
+                this.miniVizBars[m].style.height = mh + 'px';
+            }
+        }
+    }
+}
+
+// ===== Music Player (FIXED + Beat Reactive) =====
 var ytPlayerReady = false;
 var onYouTubeIframeAPIReadyCallback = null;
 window.onYouTubeIframeAPIReady = function() {
@@ -596,12 +779,12 @@ class MusicPlayer {
         this.isPlaying = false;
         this.currentStation = null;
         this.currentVideoId = null;
-        this.vizInterval = null;
         this.player = null;
         this.playerReady = false;
         this.playerCreated = false;
         this.pendingVideoId = null;
         this.pendingName = null;
+        this.beatViz = null;
 
         this.toggle = document.getElementById('musicToggle');
         this.panel = document.getElementById('musicPanel');
@@ -615,6 +798,7 @@ class MusicPlayer {
         this.visualizer = document.getElementById('audioVisualizer');
         this.nowPlayingText = document.querySelector('.now-playing-text');
         this.vizBars = document.querySelectorAll('.viz-bar');
+        this.miniVizBars = document.querySelectorAll('.mini-visualizer span');
         this.ytContainer = document.getElementById('ytPlayerContainer');
 
         this.init();
@@ -622,6 +806,12 @@ class MusicPlayer {
 
     init() {
         var self = this;
+
+        // Initialize beat visualizer
+        this.beatViz = new BeatVisualizer(
+            Array.from(this.vizBars),
+            Array.from(this.miniVizBars)
+        );
 
         // Toggle panel open/close
         this.toggle.addEventListener('click', function() { self.togglePanel(); });
@@ -653,11 +843,6 @@ class MusicPlayer {
             if (self.player && self.playerReady) {
                 self.player.setVolume(parseInt(self.volumeSlider.value));
             }
-        });
-
-        // Initialize viz bar heights
-        this.vizBars.forEach(function(bar) {
-            bar.style.setProperty('--bar-height', (0.2 + Math.random() * 0.8).toFixed(2));
         });
 
         // Create YouTube player
@@ -709,7 +894,6 @@ class MusicPlayer {
                     onReady: function() {
                         self.playerReady = true;
                         self.player.setVolume(parseInt(self.volumeSlider.value));
-                        // If there was a pending video, play it now
                         if (self.pendingVideoId) {
                             var v = self.pendingVideoId;
                             var n = self.pendingName;
@@ -723,12 +907,10 @@ class MusicPlayer {
                     onStateChange: function(e) {
                         if (e.data === YT.PlayerState.PLAYING) {
                             self.setPlaying(true);
-                            // Show the YT container
                             self.showYTContainer();
                         } else if (e.data === YT.PlayerState.PAUSED) {
                             self.setPlaying(false);
                         } else if (e.data === YT.PlayerState.ENDED) {
-                            // Loop: restart the video
                             if (self.currentVideoId) {
                                 self.player.seekTo(0);
                                 self.player.playVideo();
@@ -748,8 +930,6 @@ class MusicPlayer {
                         var errorMsg = msgs[e.data] || 'Error memutar video';
                         self.nowPlayingText.textContent = errorMsg;
                         self.setPlaying(false);
-
-                        // Try to find an alternative if embed fails
                         if (e.data === 101 || e.data === 150) {
                             self.nowPlayingText.textContent = errorMsg + ' - Coba link lain';
                         }
@@ -781,7 +961,6 @@ class MusicPlayer {
     }
 
     playStation(videoId, name, btnEl) {
-        // Highlight active station
         document.querySelectorAll('.station-btn').forEach(function(b) { b.classList.remove('active'); });
         if (btnEl) btnEl.classList.add('active');
 
@@ -878,7 +1057,7 @@ class MusicPlayer {
         this.visualizer.classList.toggle('active', playing);
 
         if (playing) {
-            this.startViz();
+            this.beatViz.start();
             // Try to get video title
             if (this.player && this.playerReady) {
                 try {
@@ -892,24 +1071,7 @@ class MusicPlayer {
                 }
             }
         } else {
-            this.stopViz();
-        }
-    }
-
-    startViz() {
-        var self = this;
-        if (this.vizInterval) clearInterval(this.vizInterval);
-        this.vizInterval = setInterval(function() {
-            self.vizBars.forEach(function(bar) {
-                bar.style.setProperty('--bar-height', (0.15 + Math.random() * 0.85).toFixed(2));
-            });
-        }, 200);
-    }
-
-    stopViz() {
-        if (this.vizInterval) {
-            clearInterval(this.vizInterval);
-            this.vizInterval = null;
+            this.beatViz.stop();
         }
     }
 }
@@ -1144,14 +1306,18 @@ class Calculator {
 // ===== Initialize =====
 document.addEventListener('DOMContentLoaded', function() {
     new InfoWidget();
-    new ParallaxBackground();
-    new LightningEffect();
 
-    var rainCanvas = document.getElementById('rainCanvas');
-    if (rainCanvas) new RainEffect(rainCanvas);
+    // Desktop-only effects
+    if (!isMobile) {
+        new ParallaxBackground();
+        new LightningEffect();
 
-    var particleCanvas = document.getElementById('particleCanvas');
-    if (particleCanvas) new ParticleSystem(particleCanvas);
+        var rainCanvas = document.getElementById('rainCanvas');
+        if (rainCanvas) new RainEffect(rainCanvas);
+
+        var particleCanvas = document.getElementById('particleCanvas');
+        if (particleCanvas) new ParticleSystem(particleCanvas);
+    }
 
     var confettiCanvas = document.getElementById('confettiCanvas');
     var confetti = new ConfettiSystem(confettiCanvas);
