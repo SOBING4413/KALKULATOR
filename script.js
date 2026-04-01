@@ -582,94 +582,336 @@ class QuickNotes {
     escapeHtml(str) { var div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
 }
 
-// ===== Music Player =====
+// ===== Music Player (FIXED) =====
 var ytPlayerReady = false;
 var onYouTubeIframeAPIReadyCallback = null;
-window.onYouTubeIframeAPIReady = function() { ytPlayerReady = true; if (onYouTubeIframeAPIReadyCallback) onYouTubeIframeAPIReadyCallback(); };
+window.onYouTubeIframeAPIReady = function() {
+    ytPlayerReady = true;
+    if (onYouTubeIframeAPIReadyCallback) onYouTubeIframeAPIReadyCallback();
+};
 
 class MusicPlayer {
     constructor() {
-        this.isOpen = false; this.isPlaying = false; this.currentStation = null; this.currentVideoId = null;
-        this.vizInterval = null; this.player = null; this.playerReady = false; this.playerCreated = false;
-        this.pendingVideoId = null; this.pendingName = null;
-        this.toggle = document.getElementById('musicToggle'); this.panel = document.getElementById('musicPanel');
-        this.closeBtn = document.getElementById('musicClose'); this.playPauseBtn = document.getElementById('musicPlayPause');
-        this.playIcon = document.getElementById('playIcon'); this.pauseIcon = document.getElementById('pauseIcon');
-        this.volumeSlider = document.getElementById('volumeSlider'); this.urlInput = document.getElementById('youtubeUrl');
-        this.urlPlayBtn = document.getElementById('urlPlayBtn'); this.visualizer = document.getElementById('audioVisualizer');
+        this.isOpen = false;
+        this.isPlaying = false;
+        this.currentStation = null;
+        this.currentVideoId = null;
+        this.vizInterval = null;
+        this.player = null;
+        this.playerReady = false;
+        this.playerCreated = false;
+        this.pendingVideoId = null;
+        this.pendingName = null;
+
+        this.toggle = document.getElementById('musicToggle');
+        this.panel = document.getElementById('musicPanel');
+        this.closeBtn = document.getElementById('musicClose');
+        this.playPauseBtn = document.getElementById('musicPlayPause');
+        this.playIcon = document.getElementById('playIcon');
+        this.pauseIcon = document.getElementById('pauseIcon');
+        this.volumeSlider = document.getElementById('volumeSlider');
+        this.urlInput = document.getElementById('youtubeUrl');
+        this.urlPlayBtn = document.getElementById('urlPlayBtn');
+        this.visualizer = document.getElementById('audioVisualizer');
         this.nowPlayingText = document.querySelector('.now-playing-text');
         this.vizBars = document.querySelectorAll('.viz-bar');
+        this.ytContainer = document.getElementById('ytPlayerContainer');
+
         this.init();
     }
+
     init() {
         var self = this;
+
+        // Toggle panel open/close
         this.toggle.addEventListener('click', function() { self.togglePanel(); });
         this.closeBtn.addEventListener('click', function() { self.togglePanel(); });
+
+        // Play/Pause button
         this.playPauseBtn.addEventListener('click', function() { self.togglePlayPause(); });
+
+        // Custom URL play
         this.urlPlayBtn.addEventListener('click', function() { self.playCustomUrl(); });
-        this.urlInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') self.playCustomUrl(); e.stopPropagation(); });
+        this.urlInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') self.playCustomUrl();
+            e.stopPropagation();
+        });
         this.urlInput.addEventListener('keyup', function(e) { e.stopPropagation(); });
         this.urlInput.addEventListener('keypress', function(e) { e.stopPropagation(); });
+
+        // Station buttons
         document.querySelectorAll('.station-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() { var vid = btn.dataset.video; var name = btn.dataset.name; if (vid) self.playStation(vid, name, btn); });
+            btn.addEventListener('click', function() {
+                var vid = btn.dataset.video;
+                var name = btn.dataset.name;
+                if (vid) self.playStation(vid, name, btn);
+            });
         });
-        this.volumeSlider.addEventListener('input', function() { if (self.player && self.playerReady) self.player.setVolume(parseInt(self.volumeSlider.value)); });
-        this.vizBars.forEach(function(bar) { bar.style.setProperty('--bar-height', (0.2 + Math.random() * 0.8).toFixed(2)); });
-        if (ytPlayerReady) { this.createPlayer(); } else { onYouTubeIframeAPIReadyCallback = function() { self.createPlayer(); }; this.pollForYTAPI(); }
+
+        // Volume slider
+        this.volumeSlider.addEventListener('input', function() {
+            if (self.player && self.playerReady) {
+                self.player.setVolume(parseInt(self.volumeSlider.value));
+            }
+        });
+
+        // Initialize viz bar heights
+        this.vizBars.forEach(function(bar) {
+            bar.style.setProperty('--bar-height', (0.2 + Math.random() * 0.8).toFixed(2));
+        });
+
+        // Create YouTube player
+        if (ytPlayerReady) {
+            this.createPlayer();
+        } else {
+            onYouTubeIframeAPIReadyCallback = function() { self.createPlayer(); };
+            this.pollForYTAPI();
+        }
     }
+
     pollForYTAPI() {
-        var self = this; var attempts = 0;
-        var poll = setInterval(function() { attempts++; if (typeof YT !== 'undefined' && YT.Player) { ytPlayerReady = true; clearInterval(poll); if (!self.playerCreated) self.createPlayer(); } else if (attempts >= 50) clearInterval(poll); }, 200);
+        var self = this;
+        var attempts = 0;
+        var poll = setInterval(function() {
+            attempts++;
+            if (typeof YT !== 'undefined' && YT.Player) {
+                ytPlayerReady = true;
+                clearInterval(poll);
+                if (!self.playerCreated) self.createPlayer();
+            } else if (attempts >= 50) {
+                clearInterval(poll);
+            }
+        }, 200);
     }
+
     createPlayer() {
-        if (this.playerCreated) return; if (typeof YT === 'undefined' || !YT.Player) return;
-        this.playerCreated = true; var self = this;
+        if (this.playerCreated) return;
+        if (typeof YT === 'undefined' || !YT.Player) return;
+        this.playerCreated = true;
+        var self = this;
+
         try {
             this.player = new YT.Player('ytPlayer', {
-                height: '180', width: '280',
-                playerVars: { autoplay: 0, controls: 1, disablekb: 0, fs: 0, modestbranding: 1, rel: 0, playsinline: 1, enablejsapi: 1, origin: window.location.origin },
+                height: '180',
+                width: '280',
+                playerVars: {
+                    autoplay: 0,
+                    controls: 1,
+                    disablekb: 0,
+                    fs: 0,
+                    modestbranding: 1,
+                    rel: 0,
+                    playsinline: 1,
+                    enablejsapi: 1,
+                    origin: window.location.origin
+                },
                 events: {
-                    onReady: function() { self.playerReady = true; self.player.setVolume(parseInt(self.volumeSlider.value)); if (self.pendingVideoId) { var v = self.pendingVideoId; self.pendingVideoId = null; self.pendingName = null; self.loadAndPlay(v); } },
-                    onStateChange: function(e) { if (e.data === YT.PlayerState.PLAYING) self.setPlaying(true); else if (e.data === YT.PlayerState.PAUSED) self.setPlaying(false); else if (e.data === YT.PlayerState.ENDED && self.currentVideoId) { self.player.seekTo(0); self.player.playVideo(); } else if (e.data === YT.PlayerState.BUFFERING) self.nowPlayingText.textContent = 'Buffering...'; },
-                    onError: function(e) { var msgs = { 2: 'ID tidak valid', 5: 'Tidak bisa diputar', 100: 'Tidak ditemukan', 101: 'Tidak bisa di-embed', 150: 'Tidak bisa di-embed' }; self.nowPlayingText.textContent = msgs[e.data] || 'Error'; self.setPlaying(false); }
+                    onReady: function() {
+                        self.playerReady = true;
+                        self.player.setVolume(parseInt(self.volumeSlider.value));
+                        // If there was a pending video, play it now
+                        if (self.pendingVideoId) {
+                            var v = self.pendingVideoId;
+                            var n = self.pendingName;
+                            self.pendingVideoId = null;
+                            self.pendingName = null;
+                            self.currentVideoId = v;
+                            self.currentStation = n;
+                            self.loadAndPlay(v);
+                        }
+                    },
+                    onStateChange: function(e) {
+                        if (e.data === YT.PlayerState.PLAYING) {
+                            self.setPlaying(true);
+                            // Show the YT container
+                            self.showYTContainer();
+                        } else if (e.data === YT.PlayerState.PAUSED) {
+                            self.setPlaying(false);
+                        } else if (e.data === YT.PlayerState.ENDED) {
+                            // Loop: restart the video
+                            if (self.currentVideoId) {
+                                self.player.seekTo(0);
+                                self.player.playVideo();
+                            }
+                        } else if (e.data === YT.PlayerState.BUFFERING) {
+                            self.nowPlayingText.textContent = 'Buffering...';
+                        }
+                    },
+                    onError: function(e) {
+                        var msgs = {
+                            2: 'ID video tidak valid',
+                            5: 'Video tidak bisa diputar (HTML5)',
+                            100: 'Video tidak ditemukan',
+                            101: 'Video tidak bisa di-embed',
+                            150: 'Video tidak bisa di-embed'
+                        };
+                        var errorMsg = msgs[e.data] || 'Error memutar video';
+                        self.nowPlayingText.textContent = errorMsg;
+                        self.setPlaying(false);
+
+                        // Try to find an alternative if embed fails
+                        if (e.data === 101 || e.data === 150) {
+                            self.nowPlayingText.textContent = errorMsg + ' - Coba link lain';
+                        }
+                    }
                 }
             });
-        } catch (err) { this.playerCreated = false; var s = this; setTimeout(function() { s.createPlayer(); }, 1000); }
+        } catch (err) {
+            this.playerCreated = false;
+            var s = this;
+            setTimeout(function() { s.createPlayer(); }, 1000);
+        }
     }
-    togglePanel() { this.isOpen = !this.isOpen; this.panel.classList.toggle('open', this.isOpen); }
+
+    showYTContainer() {
+        if (this.ytContainer) {
+            this.ytContainer.classList.add('visible');
+        }
+    }
+
+    hideYTContainer() {
+        if (this.ytContainer) {
+            this.ytContainer.classList.remove('visible');
+        }
+    }
+
+    togglePanel() {
+        this.isOpen = !this.isOpen;
+        this.panel.classList.toggle('open', this.isOpen);
+    }
+
     playStation(videoId, name, btnEl) {
+        // Highlight active station
         document.querySelectorAll('.station-btn').forEach(function(b) { b.classList.remove('active'); });
         if (btnEl) btnEl.classList.add('active');
-        this.currentVideoId = videoId; this.currentStation = name;
-        this.nowPlayingText.textContent = 'Loading: ' + name; this.loadAndPlay(videoId);
+
+        this.currentVideoId = videoId;
+        this.currentStation = name;
+        this.nowPlayingText.textContent = 'Loading: ' + name;
+        this.loadAndPlay(videoId);
     }
+
     playCustomUrl() {
-        var url = this.urlInput.value.trim(); if (!url) return;
+        var url = this.urlInput.value.trim();
+        if (!url) return;
+
         var videoId = this.extractVideoId(url);
-        if (videoId) { document.querySelectorAll('.station-btn').forEach(function(b) { b.classList.remove('active'); }); this.currentVideoId = videoId; this.currentStation = 'Custom YouTube'; this.nowPlayingText.textContent = 'Loading...'; this.loadAndPlay(videoId); }
-        else { var s = this; this.nowPlayingText.textContent = 'URL tidak valid'; setTimeout(function() { s.nowPlayingText.textContent = s.currentStation || 'Pilih station atau paste link YouTube'; }, 3000); }
+        if (videoId) {
+            document.querySelectorAll('.station-btn').forEach(function(b) { b.classList.remove('active'); });
+            this.currentVideoId = videoId;
+            this.currentStation = 'Custom YouTube';
+            this.nowPlayingText.textContent = 'Loading...';
+            this.loadAndPlay(videoId);
+        } else {
+            var self = this;
+            this.nowPlayingText.textContent = 'URL tidak valid! Coba format: youtube.com/watch?v=...';
+            setTimeout(function() {
+                self.nowPlayingText.textContent = self.currentStation || 'Pilih genre atau paste link YouTube';
+            }, 3000);
+        }
     }
+
     extractVideoId(url) {
-        var patterns = [/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/, /^([a-zA-Z0-9_-]{11})$/];
-        for (var i = 0; i < patterns.length; i++) { var m = url.match(patterns[i]); if (m) return m[1]; } return null;
+        var patterns = [
+            /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/,
+            /^([a-zA-Z0-9_-]{11})$/
+        ];
+        for (var i = 0; i < patterns.length; i++) {
+            var m = url.match(patterns[i]);
+            if (m) return m[1];
+        }
+        return null;
     }
+
     loadAndPlay(videoId) {
-        if (!this.playerReady) { this.pendingVideoId = videoId; this.pendingName = this.currentStation; this.nowPlayingText.textContent = 'Menyiapkan player...'; if (!this.playerCreated && typeof YT !== 'undefined' && YT.Player) this.createPlayer(); return; }
-        try { this.player.loadVideoById({ videoId: videoId, suggestedQuality: 'small' }); this.player.setVolume(parseInt(this.volumeSlider.value)); } catch (err) { this.nowPlayingText.textContent = 'Gagal memutar'; }
+        if (!this.playerReady) {
+            this.pendingVideoId = videoId;
+            this.pendingName = this.currentStation;
+            this.nowPlayingText.textContent = 'Menyiapkan player...';
+            if (!this.playerCreated && typeof YT !== 'undefined' && YT.Player) {
+                this.createPlayer();
+            }
+            return;
+        }
+
+        try {
+            this.player.loadVideoById({
+                videoId: videoId,
+                suggestedQuality: 'small'
+            });
+            this.player.setVolume(parseInt(this.volumeSlider.value));
+            this.showYTContainer();
+        } catch (err) {
+            this.nowPlayingText.textContent = 'Gagal memutar video';
+        }
     }
+
     togglePlayPause() {
-        if (!this.player || !this.playerReady) { this.nowPlayingText.textContent = 'Tunggu sebentar...'; return; }
-        if (this.isPlaying) { this.player.pauseVideo(); } else if (this.currentVideoId) { try { var st = this.player.getPlayerState(); if (st === YT.PlayerState.PAUSED || st === YT.PlayerState.CUED) this.player.playVideo(); else this.loadAndPlay(this.currentVideoId); } catch (e) { this.loadAndPlay(this.currentVideoId); } }
+        if (!this.player || !this.playerReady) {
+            this.nowPlayingText.textContent = 'Tunggu sebentar, player sedang dimuat...';
+            return;
+        }
+
+        if (this.isPlaying) {
+            this.player.pauseVideo();
+        } else if (this.currentVideoId) {
+            try {
+                var st = this.player.getPlayerState();
+                if (st === YT.PlayerState.PAUSED || st === YT.PlayerState.CUED) {
+                    this.player.playVideo();
+                } else {
+                    this.loadAndPlay(this.currentVideoId);
+                }
+            } catch (e) {
+                this.loadAndPlay(this.currentVideoId);
+            }
+        } else {
+            this.nowPlayingText.textContent = 'Pilih genre dulu ya!';
+        }
     }
+
     setPlaying(playing) {
         this.isPlaying = playing;
-        this.playIcon.style.display = playing ? 'none' : 'block'; this.pauseIcon.style.display = playing ? 'block' : 'none';
-        this.toggle.classList.toggle('playing', playing); this.visualizer.classList.toggle('active', playing);
-        if (playing) { this.startViz(); if (this.player && this.playerReady) { try { var vd = this.player.getVideoData(); if (vd && vd.title) { this.nowPlayingText.textContent = vd.title; this.currentStation = vd.title; } } catch (e) {} } }
-        else this.stopViz();
+        this.playIcon.style.display = playing ? 'none' : 'block';
+        this.pauseIcon.style.display = playing ? 'block' : 'none';
+        this.toggle.classList.toggle('playing', playing);
+        this.visualizer.classList.toggle('active', playing);
+
+        if (playing) {
+            this.startViz();
+            // Try to get video title
+            if (this.player && this.playerReady) {
+                try {
+                    var vd = this.player.getVideoData();
+                    if (vd && vd.title) {
+                        this.nowPlayingText.textContent = vd.title;
+                        this.currentStation = vd.title;
+                    }
+                } catch (e) {
+                    // Keep current station name
+                }
+            }
+        } else {
+            this.stopViz();
+        }
     }
-    startViz() { var self = this; if (this.vizInterval) clearInterval(this.vizInterval); this.vizInterval = setInterval(function() { self.vizBars.forEach(function(bar) { bar.style.setProperty('--bar-height', (0.15 + Math.random() * 0.85).toFixed(2)); }); }, 200); }
-    stopViz() { if (this.vizInterval) { clearInterval(this.vizInterval); this.vizInterval = null; } }
+
+    startViz() {
+        var self = this;
+        if (this.vizInterval) clearInterval(this.vizInterval);
+        this.vizInterval = setInterval(function() {
+            self.vizBars.forEach(function(bar) {
+                bar.style.setProperty('--bar-height', (0.15 + Math.random() * 0.85).toFixed(2));
+            });
+        }, 200);
+    }
+
+    stopViz() {
+        if (this.vizInterval) {
+            clearInterval(this.vizInterval);
+            this.vizInterval = null;
+        }
+    }
 }
 
 // ===== Calculator =====
